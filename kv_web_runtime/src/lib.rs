@@ -165,12 +165,16 @@ impl KvWebRuntime for KvWeb {
         self.nodes.remove(&a);
         self.nodes.remove(&b);
 
-        // Insert merged node
+        // Insert merged node with diverging‑memory defaults
         let merged = WebNode {
             id: new_id,
             tokens: tokens.clone(),
             label,
             score,
+            branch_id: None,
+            branch_kind: None,
+            branch_stability: 0.0,
+            branch_drift: 0.0,
         };
 
         self.nodes.insert(new_id, merged);
