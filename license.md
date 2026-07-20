@@ -1,6 +1,10 @@
-EVALUATION LICENSE AGREEMENT
+EVALUATION LICENSE AGREEMENT — Version 3.0
 
-Version 2.1 — © Thomas Price. All Rights Reserved.
+Maximum Protection Edition
+
+© Thomas Price. All Rights Reserved.
+
+
 
 This Evaluation License Agreement (“Agreement”) governs all access to and use of the software, source code, binaries, documentation, designs, architectures, algorithms, cognitive systems, memory structures, compression engines, and related materials (“Software”) provided by Thomas Price (“Licensor”).
 
@@ -20,6 +24,8 @@ No other rights are granted.
 
 No rights are implied.
 
+No rights may be inferred.
+
 
 
 2\. PROHIBITED ACTIONS (ABSOLUTE RESTRICTIONS)
@@ -30,17 +36,17 @@ Evaluator SHALL NOT, under any circumstances:
 
 2.1 Copying \& Reproduction
 
-Copy, reproduce, mirror, or duplicate the Software, in whole or in part.
+Copy, reproduce, mirror, duplicate, archive, or store the Software, in whole or in part.
 
 
 
 2.2 Modification \& Derivative Works
 
-Modify, alter, translate, adapt, patch, extend, or create derivative works from the Software.
+Modify, alter, translate, adapt, patch, extend, transform, or create derivative works from the Software.
 
 
 
-Evaluator may NOT re‑implement, emulate, approximate, or derive any part of the Software’s:
+Evaluator may NOT re‑implement, emulate, approximate, simulate, or derive any part of the Software’s:
 
 
 
@@ -138,7 +144,7 @@ compressed KV‑subset routing formats
 
 2.3 Reverse Engineering
 
-Evaluator may NOT reverse‑engineer, decompile, disassemble, analyze, inspect, or attempt to derive:
+Evaluator may NOT reverse‑engineer, decompile, disassemble, analyze, inspect, probe, or attempt to derive:
 
 
 
@@ -174,7 +180,7 @@ collapse physics
 
 
 
-PTS‑style reversible mapping
+reversible mapping systems
 
 
 
@@ -190,7 +196,49 @@ compressed memory formats
 
 
 
-2.4 Unauthorized Use
+2.4 Anti‑Circumvention
+
+Evaluator may NOT attempt to:
+
+
+
+bypass
+
+
+
+circumvent
+
+
+
+replicate
+
+
+
+infer
+
+
+
+decode
+
+
+
+extract
+
+
+
+simulate
+
+
+
+approximate
+
+
+
+any functional, behavioral, architectural, or algorithmic aspect of the Software.
+
+
+
+2.5 Unauthorized Use
 
 Evaluator may NOT use the Software:
 
@@ -240,7 +288,7 @@ in any system that interacts with customers, users, or hardware
 
 
 
-2.5 Competitive Restrictions
+2.6 Competitive Restrictions
 
 Evaluator may NOT:
 
@@ -294,7 +342,137 @@ build products using reversible cognitive‑snapshot compression
 
 
 
-2.6 AI/ML Restrictions
+2.7 Anti‑Functional‑Equivalence
+
+Evaluator may NOT build any system that:
+
+
+
+behaves like the Software
+
+
+
+produces similar outputs
+
+
+
+uses similar memory structures
+
+
+
+uses similar compression behavior
+
+
+
+uses similar drift physics
+
+
+
+uses similar semantic branching
+
+
+
+uses similar cognitive patterns
+
+
+
+uses similar GPU routing
+
+
+
+even if the implementation is different.
+
+
+
+Functional duplication is strictly prohibited.
+
+
+
+2.8 Anti‑Clean‑Room Clause
+
+Evaluator may NOT:
+
+
+
+study the Software
+
+
+
+isolate behaviors
+
+
+
+document behaviors
+
+
+
+create specifications
+
+
+
+create diagrams
+
+
+
+create architectural summaries
+
+
+
+create algorithmic descriptions
+
+
+
+for the purpose of building a “clean‑room” re‑implementation.
+
+
+
+Clean‑room development is explicitly prohibited.
+
+
+
+2.9 Anti‑Format‑Compatibility
+
+Evaluator may NOT build any system that:
+
+
+
+reads the Software’s compressed formats
+
+
+
+writes the Software’s compressed formats
+
+
+
+interoperates with the Software
+
+
+
+integrates with the Software
+
+
+
+uses the Software’s drift packets
+
+
+
+uses the Software’s branch metadata
+
+
+
+uses the Software’s heatmap formats
+
+
+
+uses the Software’s cognitive snapshots
+
+
+
+Format compatibility is strictly prohibited.
+
+
+
+2.10 AI/ML Restrictions
 
 Evaluator may NOT:
 
@@ -328,7 +506,49 @@ use compressed outputs to infer internal cognitive behavior
 
 
 
-2.7 Distribution
+2.11 Academic Restrictions
+
+Evaluator may NOT:
+
+
+
+study
+
+
+
+analyze
+
+
+
+publish
+
+
+
+teach
+
+
+
+research
+
+
+
+document
+
+
+
+present
+
+
+
+reinterpret
+
+
+
+any part of the Software in academic, scientific, or research contexts.
+
+
+
+2.12 Distribution
 
 Evaluator may NOT:
 
@@ -366,7 +586,7 @@ or otherwise make the Software available to any third party
 
 
 
-2.8 Intellectual Extraction
+2.13 Intellectual Extraction
 
 Evaluator may NOT use any ideas, structures, patterns, designs, or concepts contained in the Software outside of the Evaluation Purpose.
 
@@ -424,7 +644,7 @@ Any prohibited action immediately terminates this Agreement.
 
 
 
-3\. OWNERSHIP
+3\. OWNERSHIP \& TRADE SECRETS
 
 Licensor retains all right, title, and interest in and to the Software, including all intellectual property rights.
 
@@ -450,9 +670,15 @@ No ownership or rights are transferred.
 
 
 
+Evaluator agrees that all internal behaviors, algorithms, compression rules, drift physics, and cognitive patterns constitute trade secrets under applicable law.
+
+
+
 4\. CONFIDENTIALITY
 
 Evaluator agrees to treat the Software as confidential and proprietary information.
+
+
 
 Evaluator shall not disclose the Software or any information derived from it to any third party without Licensor’s written consent.
 
