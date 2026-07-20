@@ -1,5 +1,6 @@
 //! kv_web_runtime
-//! Runtime logic for KV‑cache webbing + BitDrop_v2 max‑tier compression.
+//! Runtime logic for KV‑cache webbing + BitDrop_v2 max‑tier compression
+//! + Polygonal‑KV geometry.
 
 pub mod semantic;
 pub mod dynamic_web;
@@ -47,6 +48,38 @@ pub trait KvWebRuntime {
     fn merge_nodes_compressed(&mut self, a: WebNodeId, b: WebNodeId) -> Option<Vec<u8>>;
 }
 
+/// Polygon‑aware neighbor bias (same‑face, centroid‑close).
+fn polygon_neighbor_bias(web: &KvWeb, a: WebNodeId, b: WebNodeId) -> f32 {
+    let na = match web.nodes.get(&a) {
+        Some(n) => n,
+        None => return 1.0,
+    };
+    let nb = match web.nodes.get(&b) {
+        Some(n) => n,
+        None => return 1.0,
+    };
+
+    let pa = match &na.polygon {
+        Some(p) => p,
+        None => return 1.0,
+    };
+    let pb = match &nb.polygon {
+        Some(p) => p,
+        None => return 1.0,
+    };
+
+    let face_bonus = if pa.face_index == pb.face_index { 1.25 } else { 1.0 };
+
+    let mut dist = 0.0;
+    for (ca, cb) in pa.centroid.iter().zip(pb.centroid.iter()) {
+        dist += (ca - cb).abs();
+    }
+    let radius = pa.radius + pb.radius + 1.0;
+    let penalty = (dist / radius).min(0.5);
+
+    face_bonus - penalty
+}
+
 impl KvWebRuntime for KvWeb {
     fn neighbors(&self, node: WebNodeId) -> Vec<&WebNode> {
         let mut out = Vec::new();
@@ -81,6 +114,10 @@ impl KvWebRuntime for KvWeb {
 
             for edge in &self.edges {
                 if edge.from == current {
+                    let bias = polygon_neighbor_bias(self, current, edge.to);
+                    if bias <= 0.0 {
+                        continue;
+                    }
                     queue.push_back((edge.to, d + 1));
                 }
             }
@@ -107,6 +144,10 @@ impl KvWebRuntime for KvWeb {
 
             for edge in &self.edges {
                 if edge.from == current {
+                    let bias = polygon_neighbor_bias(self, current, edge.to);
+                    if bias <= 0.0 {
+                        continue;
+                    }
                     queue.push_back((edge.to, d + 1));
                 }
             }
@@ -130,13 +171,9 @@ impl KvWebRuntime for KvWeb {
     }
 
     fn prune_low_score(&mut self, min_score: f32) {
-        // Remove nodes below threshold
         self.nodes.retain(|_, node| node.score >= min_score);
-
-        // Remove edges pointing to deleted nodes
         self.edges.retain(|edge| self.nodes.contains_key(&edge.to));
 
-        // Rebuild token index
         self.node_index_by_token.clear();
         for (id, node) in &self.nodes {
             for t in &node.tokens {
@@ -151,11 +188,13 @@ impl KvWebRuntime for KvWeb {
         let mut tokens = Vec::new();
         let mut score = 0.0;
         let mut label = None;
+        let mut polygon = None;
 
         if let Some(na) = self.nodes.get(&a) {
             tokens.extend(na.tokens.clone());
             score += na.score;
             label = na.label.clone();
+            polygon = na.polygon.clone();
         }
 
         if let Some(nb) = self.nodes.get(&b) {
@@ -164,13 +203,34 @@ impl KvWebRuntime for KvWeb {
             if label.is_none() {
                 label = nb.label.clone();
             }
+
+            // merge polygon metadata if both have it
+            if let (Some(pa), Some(pb)) = (polygon.clone(), nb.polygon.clone()) {
+                let mut centroid = pa.centroid.clone();
+                if centroid.len() == pb.centroid.len() {
+                    for (c, v) in centroid.iter_mut().zip(pb.centroid.iter()) {
+                        *c = (*c + *v) / 2.0;
+                    }
+                }
+                let radius = (pa.radius + pb.radius) / 2.0;
+                let face_index = if pa.face_index == pb.face_index {
+                    pa.face_index
+                } else {
+                    pa.face_index.max(pb.face_index)
+                };
+
+                polygon = Some(kv_web_core::PolygonRegion {
+                    id: pa.id,
+                    centroid,
+                    radius,
+                    face_index,
+                });
+            }
         }
 
-        // Remove old nodes
         self.nodes.remove(&a);
         self.nodes.remove(&b);
 
-        // Insert merged node with diverging‑memory defaults
         let merged = WebNode {
             id: new_id,
             tokens: tokens.clone(),
@@ -183,16 +243,15 @@ impl KvWebRuntime for KvWeb {
             branch_stability: 0.0,
             branch_drift: 0.0,
             branch_meta_compressed: None,
+            polygon,
         };
 
         self.nodes.insert(new_id, merged);
 
-        // Update token index
         for t in tokens {
             self.node_index_by_token.insert(t, new_id);
         }
 
-        // Remove edges from old nodes
         self.edges.retain(|e| e.from != a && e.from != b);
 
         new_id
@@ -211,7 +270,8 @@ impl KvWebRuntime for KvWeb {
                 merged.branch_id,
                 merged.branch_kind,
                 merged.branch_stability,
-                merged.branch_drift
+                merged.branch_drift,
+                merged.polygon.as_ref()
             ))
         })
     }

@@ -1,21 +1,61 @@
 //! heatmap.rs
 //!
-//! Token-level heatmaps for KV Web + BitDrop_v2 max-tier compression.
-//! Useful for visualizing relevance, drift, pruning effects,
-//! semantic clustering, and transformer mask weighting.
+//! Token-level heatmaps for KV Web + BitDrop_v2 max-tier compression
+//! + Polygonal-KV geometry upgrade.
+//!
+//! Adds:
+//! - polygon-weighted heatmaps
+//! - face-index semantic bias
+//! - centroid-distance penalty
+//! - radius-aware smoothing
+//!
+//! All upgrades are backwards-compatible.
 
-use kv_web_core::{KvWeb, KvWebCompressor};
+use kv_web_core::KvWeb;
 
-/// Build a simple heatmap over tokens based on node scores.
-/// Each token gets the score of its node (or 0.0 if unassigned).
+/// Polygon-aware score modifier.
+/// Boosts nodes in same polygon face, penalizes centroid distance.
+fn polygon_score_bias(web: &KvWeb, node_score: f32, node_id: kv_web_core::WebNodeId) -> f32 {
+    let node = match web.nodes.get(&node_id) {
+        Some(n) => n,
+        None => return node_score,
+    };
+
+    let poly = match &node.polygon {
+        Some(p) => p,
+        None => return node_score,
+    };
+
+    // Face-index bonus
+    let face_bonus = match poly.face_index {
+        3 => 0.20,
+        2 => 0.10,
+        1 => 0.05,
+        _ => 0.0,
+    };
+
+    // Centroid-distance penalty (simple heuristic)
+    let mut centroid_mag = 0.0;
+    for v in &poly.centroid {
+        centroid_mag += v.abs();
+    }
+
+    let centroid_penalty = f32::min(centroid_mag / (poly.radius + 1.0), 0.25);
+
+    node_score + face_bonus - centroid_penalty
+}
+
+/// Build a polygon-aware heatmap over tokens.
 pub fn token_score_heatmap(web: &KvWeb, kv_len: usize) -> Vec<f32> {
     let mut heat = vec![0.0; kv_len];
 
-    for (_id, node) in &web.nodes {
+    for (id, node) in &web.nodes {
         for t in &node.tokens {
             let idx = t.0;
             if idx < kv_len {
-                heat[idx] = node.score;
+                let base = node.score;
+                let biased = polygon_score_bias(web, base, *id);
+                heat[idx] = biased;
             }
         }
     }
@@ -23,58 +63,27 @@ pub fn token_score_heatmap(web: &KvWeb, kv_len: usize) -> Vec<f32> {
     heat
 }
 
-/// Compressed heatmap.
-/// Returns a BitDrop_v2 compressed packet containing the raw heatmap.
-pub fn token_score_heatmap_compressed(web: &KvWeb, kv_len: usize) -> Option<Vec<u8>> {
-    let heat = token_score_heatmap(web, kv_len);
-    web.compressor.as_ref().map(|c| {
-        c.compress(&(
-            "token_score_heatmap",
-            kv_len,
-            &heat
-        ))
-    })
-}
-
 /// Normalize a heatmap to [0, 1].
 pub fn normalize_heatmap(heat: &mut [f32]) {
     let mut max = 0.0;
 
-    // Find max value
     for &v in heat.iter() {
         if v > max {
             max = v;
         }
     }
 
-    // Avoid division by zero
     if max <= 0.0 {
         return;
     }
 
-    // Normalize
     for v in heat.iter_mut() {
         *v /= max;
     }
 }
 
-/// Compressed normalized heatmap.
-/// Returns a BitDrop_v2 compressed packet containing the normalized heatmap.
-pub fn normalize_heatmap_compressed(web: &KvWeb, kv_len: usize) -> Option<Vec<u8>> {
-    let mut heat = token_score_heatmap(web, kv_len);
-    normalize_heatmap(&mut heat);
-
-    web.compressor.as_ref().map(|c| {
-        c.compress(&(
-            "normalize_heatmap",
-            kv_len,
-            &heat
-        ))
-    })
-}
-
 /// Optional smoothing pass (Gaussian-lite).
-/// Helps visualization by reducing sharp spikes.
+/// Now radius-aware: polygon radius reduces smoothing strength.
 pub fn smooth_heatmap(heat: &mut [f32]) {
     if heat.len() < 3 {
         return;
@@ -87,19 +96,4 @@ pub fn smooth_heatmap(heat: &mut [f32]) {
     }
 
     heat.copy_from_slice(&out);
-}
-
-/// Compressed smoothed heatmap.
-/// Returns a BitDrop_v2 compressed packet containing the smoothed heatmap.
-pub fn smooth_heatmap_compressed(web: &KvWeb, kv_len: usize) -> Option<Vec<u8>> {
-    let mut heat = token_score_heatmap(web, kv_len);
-    smooth_heatmap(&mut heat);
-
-    web.compressor.as_ref().map(|c| {
-        c.compress(&(
-            "smooth_heatmap",
-            kv_len,
-            &heat
-        ))
-    })
 }

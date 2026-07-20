@@ -1,5 +1,6 @@
 //! kv_web_core
-//! Core data structures for KV‑cache webbing + diverging‑memory metadata + BitDrop_v2 compression.
+//! Core data structures for KV‑cache webbing + diverging‑memory metadata + BitDrop_v2 compression
+//! + Polygonal‑KV geometry.
 
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
@@ -43,6 +44,15 @@ pub struct TokenId(pub usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct WebNodeId(pub usize);
 
+/// Polygonal semantic region for polygonal‑KV geometry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PolygonRegion {
+    pub id: u32,
+    pub centroid: Vec<f32>,
+    pub radius: f32,
+    pub face_index: u8,
+}
+
 /// A semantic or structural node over a span of tokens.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebNode {
@@ -58,6 +68,9 @@ pub struct WebNode {
     pub label_compressed: Option<Vec<u8>>,
 
     pub score: f32,
+
+    // Polygonal‑KV geometry (optional per node)
+    pub polygon: Option<PolygonRegion>,
 
     // Diverging‑memory upgrade: branch metadata
     pub branch_id: Option<u32>,
@@ -186,6 +199,9 @@ impl KvWeb {
             label: label_string,
             label_compressed,
             score,
+
+            // Polygonal‑KV defaults
+            polygon: None,
 
             // Diverging‑memory defaults
             branch_id: None,

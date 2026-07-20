@@ -1,11 +1,13 @@
-KV‑Webb Runtime
-A Diverging‑Semantic Memory Engine for Transformer Models
+KV‑Webb Runtime 3.0
+A Polygonal, Diverging‑Semantic Memory Engine for Transformer Models
 KV‑Webb is a graph‑based cognitive memory system designed to augment or replace traditional KV‑cache behavior.
-Instead of storing raw attention vectors, KV‑Webb builds a living, adaptive, multi‑branch graph of semantic nodes, edges, drift physics, pruning, reinforcement, and dynamic webbing.
+Instead of storing raw attention vectors, KV‑Webb builds a living, adaptive, geometric, multi‑branch graph of semantic nodes, edges, drift physics, pruning, reinforcement, and dynamic webbing.
 
-With the diverging‑memory upgrade, KV‑Webb now supports:
+With the polygon‑KV + diverging‑memory upgrade, KV‑Webb now supports:
 
 multi‑interpretation semantic nodes
+
+polygonal semantic regions (centroid, radius, face index)
 
 drift‑aware meaning evolution
 
@@ -13,7 +15,9 @@ stability‑weighted branch selection
 
 reinforcement‑driven semantic stabilization
 
-BitDrop_v2 max‑tier compression for nodes, edges, drift packets, heatmaps, and graph ops
+polygon‑aware pruning + routing
+
+BitDrop_v2 max‑tier compression for nodes, edges, drift packets, heatmaps, polygons, and graph ops
 
 GPU‑accelerated attention mask building
 
@@ -25,11 +29,15 @@ Token clustering based on cosine similarity
 
 Centroid‑based node representation
 
+Polygonal semantic regions (centroid, radius, face index)
+
 Semantic edges between related concepts
 
 Branch‑aware nodes for multi‑modal meaning
 
 Compressed token lists (NUMBIN / BD3D)
+
+Polygon‑aware centroid + radius calculations
 
 🕸 Dynamic Webbing
 Automatic edge strengthening when nodes co‑occur
@@ -41,6 +49,8 @@ Recency‑based linking
 Edge normalization and cleanup
 
 Branch stabilization based on usage patterns
+
+Polygon‑aware reinforcement
 
 Compressed BFS / PageRank packets
 
@@ -55,6 +65,8 @@ Edge drift and decay
 
 Per‑branch drift + stability tracking
 
+Radius‑weighted drift modulation
+
 Compressed drift packets
 
 ✂️ Pruning System
@@ -68,8 +80,12 @@ Automatic token‑to‑node index rebuild
 
 Pruning of unstable or drifted branches
 
+Polygon‑aware pruning (centroid distance, face index, radius)
+
 🔍 Graph Operations
 BFS region expansion
+
+Polygon‑weighted BFS
 
 PageRank‑like relevance scoring
 
@@ -77,25 +93,33 @@ Neighbor collection utilities
 
 Branch‑weighted relevance ranking
 
+Polygon‑aware relevance ranking
+
 Compressed graph outputs
 
 🔥 Heatmaps
 Token‑level relevance heatmaps
 
-Normalization and smoothing utilities
-
 Drift‑adjusted heatmaps for semantic stability
+
+Polygon‑weighted heatmaps (face bonus, centroid penalty, radius smoothing)
+
+Normalization and smoothing utilities
 
 Compressed heatmaps (raw / normalized / smoothed)
 
 🔗 Transformer Integration
 Region‑based attention masks
 
+Polygon‑aware GPU mask building
+
 KV subset extraction
 
 Drop‑in replacement for KV‑cache selection logic
 
 Branch‑aware semantic routing
+
+Polygon‑aware semantic routing
 
 GPU‑accelerated mask building
 
@@ -107,6 +131,7 @@ kv_web_core/
     WebEdge
     TokenId
     WebNodeId
+    PolygonRegion
 
 kv_web_runtime/
     drift.rs
@@ -120,7 +145,7 @@ kv_web_integration/
     kv_subset.rs
     attention_mask.rs
     gpu.rs
-Each subsystem is independent but designed to work together as a unified cognitive memory engine.
+Each subsystem is independent but designed to work together as a unified geometric cognitive memory engine.
 
 Example Usage
 rust
@@ -149,6 +174,8 @@ Long‑term memory
 
 Semantic retrieval
 
+Polygon‑aware geometric routing
+
 Adaptive relevance
 
 Cognitive‑style drift and reinforcement
@@ -163,11 +190,10 @@ Reversible compression for all memory structures
 
 GPU‑accelerated routing and mask building
 
-This project explores how transformer models behave when given a persistent, evolving memory system instead of a stateless KV‑cache.
+This project explores how transformer models behave when given a persistent, evolving, geometric memory system instead of a stateless KV‑cache.
 
 Why KV‑Webb Matters
 Traditional KV‑cache:
-
 stores raw vectors
 
 forgets instantly
@@ -176,11 +202,16 @@ has no structure
 
 has no meaning
 
-KV‑Webb:
+cannot represent multiple interpretations
 
+cannot route based on geometry
+
+KV‑Webb:
 stores semantic nodes
 
 builds dynamic edges
+
+forms polygonal semantic regions
 
 drifts over time
 
@@ -195,6 +226,8 @@ supports multi‑branch semantic interpretation
 compresses memory by 82–96%
 
 accelerates routing via GPU
+
+routes based on geometry + semantics + stability
 
 KV‑Webb is not an optimization —
 it is a cognitive architecture.

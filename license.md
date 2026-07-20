@@ -6,7 +6,7 @@ Maximum Protection Edition
 
 
 
-This Evaluation License Agreement (“Agreement”) governs all access to and use of the software, source code, binaries, documentation, designs, architectures, algorithms, cognitive systems, memory structures, compression engines, and related materials (“Software”) provided by Thomas Price (“Licensor”).
+This Evaluation License Agreement (“Agreement”) governs all access to and use of the software, source code, binaries, documentation, designs, architectures, algorithms, cognitive systems, memory structures, compression engines, geometric routing systems, and related materials (“Software”) provided by Thomas Price (“Licensor”).
 
 
 
@@ -26,6 +26,8 @@ No rights are implied.
 
 No rights may be inferred.
 
+No rights survive termination.
+
 
 
 2\. PROHIBITED ACTIONS (ABSOLUTE RESTRICTIONS)
@@ -42,7 +44,7 @@ Copy, reproduce, mirror, duplicate, archive, or store the Software, in whole or 
 
 2.2 Modification \& Derivative Works
 
-Modify, alter, translate, adapt, patch, extend, transform, or create derivative works from the Software.
+Evaluator may NOT modify, alter, translate, adapt, patch, extend, transform, or create derivative works from the Software.
 
 
 
@@ -50,13 +52,53 @@ Evaluator may NOT re‑implement, emulate, approximate, simulate, or derive any 
 
 
 
-architecture
+Core Cognitive Architecture
+
+semantic memory system
 
 
 
-memory system
+polygon‑KV geometry
 
 
+
+centroid, radius, face‑index computation
+
+
+
+polygonal merge rules
+
+
+
+polygon‑aware routing
+
+
+
+polygon‑aware pruning
+
+
+
+polygon‑weighted heatmaps
+
+
+
+polygon‑weighted BFS / PageRank
+
+
+
+polygon‑aware KV‑subset routing
+
+
+
+polygonal semantic clustering
+
+
+
+polygonal region scoring
+
+
+
+Memory Systems
 
 drift physics
 
@@ -70,7 +112,7 @@ semantic branching
 
 
 
-cognitive behavior
+branch stability / drift tracking
 
 
 
@@ -90,7 +132,9 @@ graph engine
 
 
 
-compression engine
+Compression Systems
+
+BitDrop\_v2 adaptive compression
 
 
 
@@ -118,6 +162,8 @@ GPU BD3D encoder/decoder
 
 
 
+Compressed Formats
+
 compressed cognitive‑snapshot formats
 
 
@@ -127,6 +173,10 @@ compressed drift packets
 
 
 compressed branch metadata formats
+
+
+
+compressed polygon metadata formats
 
 
 
@@ -160,23 +210,19 @@ algorithms
 
 
 
-cognitive patterns
+geometric routing behavior
 
 
 
-architectural concepts
+polygonal region formation
 
 
 
-semantic or procedural memory behavior
+drift physics
 
 
 
 compression rules
-
-
-
-collapse physics
 
 
 
@@ -188,7 +234,7 @@ adaptive profile heuristics
 
 
 
-GPU compression behavior
+GPU routing behavior
 
 
 
@@ -198,43 +244,7 @@ compressed memory formats
 
 2.4 Anti‑Circumvention
 
-Evaluator may NOT attempt to:
-
-
-
-bypass
-
-
-
-circumvent
-
-
-
-replicate
-
-
-
-infer
-
-
-
-decode
-
-
-
-extract
-
-
-
-simulate
-
-
-
-approximate
-
-
-
-any functional, behavioral, architectural, or algorithmic aspect of the Software.
+Evaluator may NOT attempt to bypass, circumvent, replicate, infer, decode, extract, simulate, or approximate any functional, behavioral, architectural, geometric, or algorithmic aspect of the Software.
 
 
 
@@ -326,7 +336,19 @@ build products using the same semantic branching
 
 
 
-build products using the same cognitive patterns
+build products using the same polygon‑KV geometry
+
+
+
+build products using the same polygon routing
+
+
+
+build products using the same polygon pruning
+
+
+
+build products using the same polygon heatmaps
 
 
 
@@ -360,7 +382,11 @@ uses similar memory structures
 
 
 
-uses similar compression behavior
+uses similar geometric routing
+
+
+
+uses similar polygonal region formation
 
 
 
@@ -377,10 +403,6 @@ uses similar cognitive patterns
 
 
 uses similar GPU routing
-
-
-
-even if the implementation is different.
 
 
 
@@ -457,6 +479,10 @@ uses the Software’s drift packets
 
 
 uses the Software’s branch metadata
+
+
+
+uses the Software’s polygon metadata
 
 
 
@@ -588,7 +614,7 @@ or otherwise make the Software available to any third party
 
 2.13 Intellectual Extraction
 
-Evaluator may NOT use any ideas, structures, patterns, designs, or concepts contained in the Software outside of the Evaluation Purpose.
+Evaluator may NOT use any ideas, structures, patterns, designs, geometric concepts, or cognitive mechanisms contained in the Software outside of the Evaluation Purpose.
 
 
 
@@ -601,6 +627,10 @@ cognitive architecture
 
 
 semantic memory design
+
+
+
+polygon‑KV geometry
 
 
 
@@ -646,7 +676,7 @@ Any prohibited action immediately terminates this Agreement.
 
 3\. OWNERSHIP \& TRADE SECRETS
 
-Licensor retains all right, title, and interest in and to the Software, including all intellectual property rights.
+Licensor retains all right, title, and interest in and to the Software.
 
 
 
@@ -662,7 +692,7 @@ The Software contains trade secrets.
 
 
 
-The Software’s architecture, design, cognitive behavior, memory systems, and compression systems are protected intellectual property.
+The Software’s architecture, design, geometric routing, memory systems, and compression systems are protected intellectual property.
 
 
 
@@ -670,23 +700,21 @@ No ownership or rights are transferred.
 
 
 
-Evaluator agrees that all internal behaviors, algorithms, compression rules, drift physics, and cognitive patterns constitute trade secrets under applicable law.
+Evaluator agrees that all internal behaviors, algorithms, geometric routing rules, compression rules, drift physics, and cognitive patterns constitute trade secrets under applicable law.
 
 
 
 4\. CONFIDENTIALITY
 
-Evaluator agrees to treat the Software as confidential and proprietary information.
+Evaluator shall treat the Software as confidential and proprietary.
 
-
-
-Evaluator shall not disclose the Software or any information derived from it to any third party without Licensor’s written consent.
+Evaluator shall not disclose the Software or any information derived from it to any third party.
 
 
 
 5\. NO WARRANTY
 
-The Software is provided “AS IS” without warranty of any kind, express or implied.
+The Software is provided “AS IS” without warranty of any kind.
 
 
 
@@ -720,7 +748,7 @@ Certify deletion in writing upon request.
 
 8\. COMMERCIAL LICENSE REQUIRED
 
-Evaluator acknowledges and agrees that ANY use of the Software beyond the Evaluation Purpose — including but not limited to:
+ANY use of the Software beyond the Evaluation Purpose — including but not limited to:
 
 
 
@@ -760,6 +788,22 @@ compression engine reuse
 
 
 
+polygon‑KV geometry reuse
+
+
+
+polygon routing reuse
+
+
+
+polygon pruning reuse
+
+
+
+polygon heatmap reuse
+
+
+
 collapse rule reuse
 
 
@@ -786,7 +830,7 @@ Evaluator’s ONLY path to continued use is purchasing a commercial license.
 
 9\. GOVERNING LAW
 
-This Agreement shall be governed by the laws of the United States and the State of Kentucky, without regard to conflict‑of‑law principles.
+This Agreement is governed by the laws of the United States and the State of Kentucky.
 
 
 
