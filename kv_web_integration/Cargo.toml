@@ -1,0 +1,10 @@
+[package]
+name = "kv_web_integration"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+kv_web_core = { path = "../kv_web_core" }
+kv_web_runtime = { path = "../kv_web_runtime" }
+serde = { workspace = true }
+cust = "0.3.2"

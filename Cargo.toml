@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+    "kv_web_core",
+    "kv_web_runtime",
+    "kv_web_integration",
+]
+
+# Optional: shared settings for all crates
+[workspace.package]
+edition = "2021"
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }

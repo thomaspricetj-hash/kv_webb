@@ -1,0 +1,8 @@
+[package]
+name = "kv_web_runtime"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+kv_web_core = { path = "../kv_web_core" }
+serde = { workspace = true }
