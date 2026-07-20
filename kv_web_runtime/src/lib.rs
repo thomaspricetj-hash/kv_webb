@@ -1,20 +1,6 @@
 //! kv_web_runtime
-//! Runtime logic for KV‑cache webbing.
-//!
-//! This crate provides the operational layer on top of kv_web_core:
-//! - neighbor traversal
-//! - depth‑limited region queries
-//! - scoring utilities
-//! - pruning and merging helpers
-//! - semantic clustering
-//! - embedding‑based similarity
-//! - graph algorithms (BFS, PageRank)
-//! - heatmap generation
-//!
-//! The transformer still sees a flat KV cache, but this runtime lets
-//! you query *structured regions* of that cache using the web graph.
+//! Runtime logic for KV‑cache webbing + BitDrop_v2 max‑tier compression.
 
-// Core runtime modules
 pub mod semantic;
 pub mod dynamic_web;
 pub mod pruning;
@@ -26,7 +12,7 @@ pub mod embedding;
 pub mod graph_ops;
 pub mod heatmap;
 
-use kv_web_core::{KvWeb, WebNodeId, TokenId, WebNode};
+use kv_web_core::{KvWeb, WebNodeId, TokenId, WebNode, KvWebCompressor};
 use std::collections::{HashSet, VecDeque};
 
 /// Runtime extensions for KvWeb.
@@ -39,8 +25,14 @@ pub trait KvWebRuntime {
     /// Returns all tokens reachable from `root` within `depth` hops.
     fn tokens_in_region(&self, root: WebNodeId, depth: usize) -> HashSet<TokenId>;
 
+    /// Same as above, but returns a compressed BitDrop snapshot.
+    fn tokens_in_region_compressed(&self, root: WebNodeId, depth: usize) -> Option<Vec<u8>>;
+
     /// Get all nodes reachable within `depth` hops.
     fn nodes_in_region(&self, root: WebNodeId, depth: usize) -> HashSet<WebNodeId>;
+
+    /// Compressed region snapshot.
+    fn nodes_in_region_compressed(&self, root: WebNodeId, depth: usize) -> Option<Vec<u8>>;
 
     /// Compute a simple region score (sum of node scores).
     fn region_score(&self, root: WebNodeId, depth: usize) -> f32;
@@ -50,6 +42,9 @@ pub trait KvWebRuntime {
 
     /// Merge two nodes into one (simple union).
     fn merge_nodes(&mut self, a: WebNodeId, b: WebNodeId) -> WebNodeId;
+
+    /// Merge nodes + compressed metadata.
+    fn merge_nodes_compressed(&mut self, a: WebNodeId, b: WebNodeId) -> Option<Vec<u8>>;
 }
 
 impl KvWebRuntime for KvWeb {
@@ -94,6 +89,11 @@ impl KvWebRuntime for KvWeb {
         out_tokens
     }
 
+    fn tokens_in_region_compressed(&self, root: WebNodeId, depth: usize) -> Option<Vec<u8>> {
+        let tokens = self.tokens_in_region(root, depth);
+        self.compressor.as_ref().map(|c| c.compress(&tokens))
+    }
+
     fn nodes_in_region(&self, root: WebNodeId, depth: usize) -> HashSet<WebNodeId> {
         let mut visited: HashSet<WebNodeId> = HashSet::new();
         let mut queue: VecDeque<(WebNodeId, usize)> = VecDeque::new();
@@ -113,6 +113,11 @@ impl KvWebRuntime for KvWeb {
         }
 
         visited
+    }
+
+    fn nodes_in_region_compressed(&self, root: WebNodeId, depth: usize) -> Option<Vec<u8>> {
+        let nodes = self.nodes_in_region(root, depth);
+        self.compressor.as_ref().map(|c| c.compress(&nodes))
     }
 
     fn region_score(&self, root: WebNodeId, depth: usize) -> f32 {
@@ -169,12 +174,15 @@ impl KvWebRuntime for KvWeb {
         let merged = WebNode {
             id: new_id,
             tokens: tokens.clone(),
+            tokens_compressed: None,
             label,
+            label_compressed: None,
             score,
             branch_id: None,
             branch_kind: None,
             branch_stability: 0.0,
             branch_drift: 0.0,
+            branch_meta_compressed: None,
         };
 
         self.nodes.insert(new_id, merged);
@@ -189,5 +197,24 @@ impl KvWebRuntime for KvWeb {
 
         new_id
     }
+
+    fn merge_nodes_compressed(&mut self, a: WebNodeId, b: WebNodeId) -> Option<Vec<u8>> {
+        let new_id = self.merge_nodes(a, b);
+        let merged = self.nodes.get(&new_id)?;
+
+        self.compressor.as_ref().map(|c| {
+            c.compress(&(
+                merged.id,
+                merged.tokens.clone(),
+                merged.label.clone(),
+                merged.score,
+                merged.branch_id,
+                merged.branch_kind,
+                merged.branch_stability,
+                merged.branch_drift
+            ))
+        })
+    }
 }
+
 

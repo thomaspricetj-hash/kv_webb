@@ -1,5 +1,5 @@
 //! drift.rs
-//! Relevance drift physics for KV Web.
+//! Relevance drift physics for KV Web + BitDrop_v2 max‑tier compression.
 //!
 //! This module handles:
 //! - time‑based score decay
@@ -7,9 +7,10 @@
 //! - drift curves (linear, exponential)
 //! - edge drift
 //!
-//! This makes the KV Web behave like a living memory system.
+//! With BitDrop_v2 wired in, drift updates produce compressed packets
+//! that can be logged, replayed, or routed into higher‑level memory.
 
-use kv_web_core::{KvWeb, WebNodeId, NodeDriftState};
+use kv_web_core::{KvWeb, WebNodeId, NodeDriftState, KvWebCompressor};
 use std::time::Instant;
 
 /// Drift mode for score decay.
@@ -34,13 +35,16 @@ pub trait KvWebDrift {
     fn init_drift_state(&mut self);
 
     /// Apply drift to all nodes based on time since last access.
-    fn apply_drift(&mut self, cfg: &DriftConfig);
+    /// Returns an optional compressed drift packet.
+    fn apply_drift(&mut self, cfg: &DriftConfig) -> Option<Vec<u8>>;
 
     /// Apply drift to edges.
-    fn apply_edge_drift(&mut self, cfg: &DriftConfig);
+    /// Returns an optional compressed edge‑drift packet.
+    fn apply_edge_drift(&mut self, cfg: &DriftConfig) -> Option<Vec<u8>>;
 
     /// Reinforce a node (called when node is accessed).
-    fn reinforce_node(&mut self, node: WebNodeId, cfg: &DriftConfig);
+    /// Returns an optional compressed reinforcement packet.
+    fn reinforce_node(&mut self, node: WebNodeId, cfg: &DriftConfig) -> Option<Vec<u8>>;
 }
 
 impl KvWebDrift for KvWeb {
@@ -57,10 +61,12 @@ impl KvWebDrift for KvWeb {
         }
     }
 
-    fn apply_drift(&mut self, cfg: &DriftConfig) {
+    fn apply_drift(&mut self, cfg: &DriftConfig) -> Option<Vec<u8>> {
         let Some(state) = self.drift_state.as_mut() else {
-            return;
+            return None;
         };
+
+        let mut updates: Vec<(WebNodeId, f32)> = Vec::new();
 
         for (id, node) in &mut self.nodes {
             if let Some(drift) = state.get(id) {
@@ -81,12 +87,26 @@ impl KvWebDrift for KvWeb {
                         }
                     }
                 }
+
+                updates.push((*id, node.score));
             }
         }
+
+        // MAX‑TIER BitDrop_v2 compressed drift packet
+        self.compressor.as_ref().map(|c| {
+            c.compress(&(
+                "apply_drift",
+                cfg.decay_rate,
+                &updates
+            ))
+        })
     }
 
-    fn apply_edge_drift(&mut self, cfg: &DriftConfig) {
+    fn apply_edge_drift(&mut self, cfg: &DriftConfig) -> Option<Vec<u8>> {
+        let mut before_after: Vec<(WebNodeId, WebNodeId, f32)> = Vec::new();
+
         for edge in &mut self.edges {
+            let before = edge.weight;
             match cfg.mode {
                 DriftMode::Linear => {
                     edge.weight -= cfg.edge_decay_rate;
@@ -96,22 +116,52 @@ impl KvWebDrift for KvWeb {
                     edge.weight *= factor;
                 }
             }
+            before_after.push((edge.from, edge.to, before));
         }
 
         // Remove dead edges
         self.edges.retain(|e| e.weight > 0.0);
+
+        // MAX‑TIER BitDrop_v2 compressed edge‑drift packet
+        self.compressor.as_ref().map(|c| {
+            c.compress(&(
+                "apply_edge_drift",
+                cfg.edge_decay_rate,
+                &before_after
+            ))
+        })
     }
 
-    fn reinforce_node(&mut self, node: WebNodeId, cfg: &DriftConfig) {
+    fn reinforce_node(&mut self, node: WebNodeId, cfg: &DriftConfig) -> Option<Vec<u8>> {
+        let mut new_score = None;
+
         if let Some(n) = self.nodes.get_mut(&node) {
             n.score += cfg.reinforcement_amount;
+            new_score = Some(n.score);
         }
 
         if let Some(state) = self.drift_state.as_mut() {
             if let Some(s) = state.get_mut(&node) {
                 s.last_access = Instant::now();
+
+                // Also update compressed drift packet for this node
+                if let Some(comp) = &self.compressor {
+                    let packet = comp.compress(&(s.drift_score, s.reinforcement_score));
+                    s.drift_packet_compressed = Some(packet);
+                }
             }
         }
+
+        // MAX‑TIER BitDrop_v2 compressed reinforcement packet
+        self.compressor.as_ref().map(|c| {
+            c.compress(&(
+                "reinforce_node",
+                node,
+                cfg.reinforcement_amount,
+                new_score
+            ))
+        })
     }
 }
+
 

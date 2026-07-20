@@ -6,7 +6,16 @@
 
 use kv_web_core::{WebNodeId, KvWeb};
 use kv_web_runtime::KvWebRuntime;
+
+// === REQUIRED FOR cust 0.3.x ===
 use cust::prelude::*;
+use cust::context::Context;
+use cust::device::Device;
+use cust::memory::DeviceBuffer;
+use cust::module::Module;
+use cust::stream::{Stream, StreamFlags};
+use cust::launch;
+
 use std::error::Error;
 
 /// GPU context wrapper.
@@ -20,7 +29,7 @@ impl GpuContext {
     pub fn new() -> Result<Self, Box<dyn Error>> {
         cust::init(cust::CudaFlags::empty())?;
         let device = Device::get_device(0)?;
-        let ctx = Context::new(device)?; // cust 0.3.2: use Context::new
+        let ctx = Context::new(device)?; // cust 0.3.2 API
         Ok(Self { device, ctx })
     }
 }
@@ -56,7 +65,7 @@ pub fn build_attention_mask_gpu(
 
     // Allocate GPU buffers
     let region_buf = DeviceBuffer::from_slice(&region_vec).unwrap();
-    let mut mask_buf = DeviceBuffer::<f32>::zeroed(kv_len).unwrap();
+    let mask_buf = DeviceBuffer::<f32>::zeroed(kv_len).unwrap();
 
     // CUDA kernel source (simple mask builder)
     let ptx = r#"

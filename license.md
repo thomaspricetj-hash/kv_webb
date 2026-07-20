@@ -1,8 +1,8 @@
 EVALUATION LICENSE AGREEMENT
 
-Version 2.0 — © Thomas Price. All Rights Reserved.
+Version 2.1 — © Thomas Price. All Rights Reserved.
 
-This Evaluation License Agreement (“Agreement”) governs all access to and use of the software, source code, binaries, documentation, designs, architectures, algorithms, cognitive systems, memory structures, and related materials (“Software”) provided by Thomas Price (“Licensor”).
+This Evaluation License Agreement (“Agreement”) governs all access to and use of the software, source code, binaries, documentation, designs, architectures, algorithms, cognitive systems, memory structures, compression engines, and related materials (“Software”) provided by Thomas Price (“Licensor”).
 
 
 
@@ -40,7 +40,7 @@ Modify, alter, translate, adapt, patch, extend, or create derivative works from 
 
 
 
-Re‑implement, emulate, or approximate any part of the Software’s:
+Evaluator may NOT re‑implement, emulate, approximate, or derive any part of the Software’s:
 
 
 
@@ -84,9 +84,61 @@ graph engine
 
 
 
+compression engine
+
+
+
+BD3D collapse logic
+
+
+
+Origami compression mode
+
+
+
+PyMid structured‑text encoder/decoder
+
+
+
+NUMBIN counter compressor
+
+
+
+adaptive compression profile router
+
+
+
+GPU BD3D encoder/decoder
+
+
+
+compressed cognitive‑snapshot formats
+
+
+
+compressed drift packets
+
+
+
+compressed branch metadata formats
+
+
+
+compressed heatmap formats
+
+
+
+compressed BFS / PageRank formats
+
+
+
+compressed KV‑subset routing formats
+
+
+
 2.3 Reverse Engineering
 
-Reverse‑engineer, decompile, disassemble, analyze, inspect, or attempt to derive:
+Evaluator may NOT reverse‑engineer, decompile, disassemble, analyze, inspect, or attempt to derive:
 
 
 
@@ -111,6 +163,30 @@ architectural concepts
 
 
 semantic or procedural memory behavior
+
+
+
+compression rules
+
+
+
+collapse physics
+
+
+
+PTS‑style reversible mapping
+
+
+
+adaptive profile heuristics
+
+
+
+GPU compression behavior
+
+
+
+compressed memory formats
 
 
 
@@ -206,6 +282,18 @@ build products using the same cognitive patterns
 
 
 
+build products using the same compression engine
+
+
+
+build products using BD3D, Origami, PyMid, NUMBIN, or adaptive compression concepts
+
+
+
+build products using reversible cognitive‑snapshot compression
+
+
+
 2.6 AI/ML Restrictions
 
 Evaluator may NOT:
@@ -229,6 +317,14 @@ use the Software to design competing cognitive systems
 
 
 use the Software to evaluate or benchmark AI systems
+
+
+
+use the Software’s compression engine to train or optimize AI models
+
+
+
+use compressed outputs to infer internal cognitive behavior
 
 
 
@@ -276,6 +372,54 @@ Evaluator may NOT use any ideas, structures, patterns, designs, or concepts cont
 
 
 
+This includes:
+
+
+
+cognitive architecture
+
+
+
+semantic memory design
+
+
+
+drift physics
+
+
+
+pruning physics
+
+
+
+dynamic webbing
+
+
+
+branch‑aware semantics
+
+
+
+compression physics
+
+
+
+collapse rules
+
+
+
+adaptive profile routing
+
+
+
+GPU compression behavior
+
+
+
+compressed memory formats
+
+
+
 Any prohibited action immediately terminates this Agreement.
 
 
@@ -298,7 +442,7 @@ The Software contains trade secrets.
 
 
 
-The Software’s architecture, design, cognitive behavior, and memory systems are protected intellectual property.
+The Software’s architecture, design, cognitive behavior, memory systems, and compression systems are protected intellectual property.
 
 
 
@@ -383,6 +527,26 @@ AI agent integration
 
 
 memory system replication
+
+
+
+compression engine reuse
+
+
+
+collapse rule reuse
+
+
+
+adaptive profile reuse
+
+
+
+GPU compression reuse
+
+
+
+compressed memory format reuse
 
 
 

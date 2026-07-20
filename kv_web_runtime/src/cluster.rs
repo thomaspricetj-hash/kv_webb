@@ -1,9 +1,9 @@
 //! cluster.rs
 //!
-//! Semantic clustering over KV Web nodes.
+//! Semantic clustering over KV Web nodes + BitDrop_v2 max‑tier compression.
 //! Groups nodes into clusters based on labels, scores, and simple heuristics.
 
-use kv_web_core::{KvWeb, WebNodeId};
+use kv_web_core::{KvWeb, WebNodeId, KvWebCompressor};
 use std::collections::HashMap;
 
 /// A simple cluster: just a set of node IDs.
@@ -13,6 +13,9 @@ pub struct Cluster {
     pub nodes: Vec<WebNodeId>,
     pub label: Option<String>,
     pub score: f32,
+
+    // MAX‑TIER BitDrop_v2 compressed payload
+    pub compressed: Option<Vec<u8>>,
 }
 
 /// Clustering configuration.
@@ -24,12 +27,17 @@ pub struct ClusterConfig {
 
 pub struct KvWebClusters {
     pub clusters: Vec<Cluster>,
+
+    // Optional compressor for cluster snapshots
+    pub compressor: Option<KvWebCompressor>,
 }
 
 impl KvWebClusters {
     pub fn from_web(web: &KvWeb, cfg: &ClusterConfig) -> Self {
         let mut clusters = Vec::new();
         let mut current_id = 0;
+
+        let compressor = web.compressor.clone();
 
         // naive clustering: group by label
         let mut by_label: HashMap<String, Vec<WebNodeId>> = HashMap::new();
@@ -53,12 +61,24 @@ impl KvWebClusters {
                 chunk.push(n);
                 if chunk.len() >= cfg.max_cluster_size {
                     let score = avg_score(web, &chunk);
+
+                    let compressed = compressor.as_ref().map(|c| {
+                        c.compress(&(
+                            current_id,
+                            &chunk,
+                            &label,
+                            score
+                        ))
+                    });
+
                     clusters.push(Cluster {
                         id: current_id,
                         nodes: chunk.clone(),
                         label: Some(label.clone()),
                         score,
+                        compressed,
                     });
+
                     current_id += 1;
                     chunk.clear();
                 }
@@ -66,17 +86,32 @@ impl KvWebClusters {
 
             if !chunk.is_empty() {
                 let score = avg_score(web, &chunk);
+
+                let compressed = compressor.as_ref().map(|c| {
+                    c.compress(&(
+                        current_id,
+                        &chunk,
+                        &label,
+                        score
+                    ))
+                });
+
                 clusters.push(Cluster {
                     id: current_id,
                     nodes: chunk.clone(),
                     label: Some(label.clone()),
                     score,
+                    compressed,
                 });
+
                 current_id += 1;
             }
         }
 
-        Self { clusters }
+        Self {
+            clusters,
+            compressor,
+        }
     }
 }
 
@@ -101,3 +136,4 @@ fn avg_score(web: &KvWeb, nodes: &[WebNodeId]) -> f32 {
         sum / count as f32
     }
 }
+

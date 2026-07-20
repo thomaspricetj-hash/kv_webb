@@ -1,9 +1,39 @@
 //! kv_web_core
-//! Core data structures for KV‑cache webbing + diverging‑memory metadata.
+//! Core data structures for KV‑cache webbing + diverging‑memory metadata + BitDrop_v2 compression.
 
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use std::time::Instant;
+
+// ============================================================
+// BitDrop_v2 COMPRESSION ADAPTER (FUNCTION-BASED)
+// ============================================================
+
+#[derive(Debug, Clone)]
+/// Thin wrapper so KvWeb never touches BitDrop internals directly.
+pub struct KvWebCompressor;
+
+impl KvWebCompressor {
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Compress any serializable payload into a reversible BitDrop block.
+    pub fn compress<T: Serialize>(&self, payload: &T) -> Vec<u8> {
+        let bytes = bincode::serialize(payload).unwrap_or_default();
+        bitdrop_v2::compress_adaptive(&bytes)
+    }
+
+    /// Decompress a BitDrop block back into a Rust type.
+    pub fn decompress<T: for<'de> Deserialize<'de>>(&self, data: &[u8]) -> Option<T> {
+        let raw = bitdrop_v2::decompress_adaptive(data);
+        bincode::deserialize(&raw).ok()
+    }
+}
+
+// ============================================================
+// Core KV‑Webb Types
+// ============================================================
 
 /// A single token position in the KV cache.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -17,8 +47,16 @@ pub struct WebNodeId(pub usize);
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebNode {
     pub id: WebNodeId,
+
+    // RAW (uncompressed) token list — stored only if compressor is disabled.
     pub tokens: Vec<TokenId>,
+
+    // COMPRESSED token list — BitDrop_v2 max‑tier
+    pub tokens_compressed: Option<Vec<u8>>,
+
     pub label: Option<String>,
+    pub label_compressed: Option<Vec<u8>>,
+
     pub score: f32,
 
     // Diverging‑memory upgrade: branch metadata
@@ -26,6 +64,9 @@ pub struct WebNode {
     pub branch_kind: Option<u8>,      // e.g. 0=semantic,1=context,2=motion,3=color,...
     pub branch_stability: f32,        // higher = more stable branch
     pub branch_drift: f32,            // higher = more drift from canonical meaning
+
+    // COMPRESSED branch metadata
+    pub branch_meta_compressed: Option<Vec<u8>>,
 }
 
 /// Types of edges between nodes.
@@ -54,6 +95,9 @@ pub struct NodeDriftState {
     // Diverging‑memory upgrade: drift + reinforcement tracking
     pub drift_score: f32,
     pub reinforcement_score: f32,
+
+    // COMPRESSED drift packet
+    pub drift_packet_compressed: Option<Vec<u8>>,
 }
 
 impl NodeDriftState {
@@ -62,6 +106,7 @@ impl NodeDriftState {
             last_access: Instant::now(),
             drift_score: 0.0,
             reinforcement_score: 0.0,
+            drift_packet_compressed: None,
         }
     }
 }
@@ -76,6 +121,9 @@ pub struct KvWeb {
 
     #[serde(skip)]
     pub drift_state: Option<HashMap<WebNodeId, NodeDriftState>>,
+
+    #[serde(skip)]
+    pub compressor: Option<KvWebCompressor>,
 }
 
 impl Default for KvWeb {
@@ -86,6 +134,7 @@ impl Default for KvWeb {
             node_index_by_token: HashMap::new(),
             next_node_id: 0,
             drift_state: None,
+            compressor: Some(KvWebCompressor::new()),
         }
     }
 }
@@ -104,10 +153,38 @@ impl KvWeb {
         let id = WebNodeId(self.next_node_id);
         self.next_node_id += 1;
 
+        // ============================================================
+        // MAX‑TIER BITDROP COMPRESSION
+        // ============================================================
+
+        let tokens_compressed = self
+            .compressor
+            .as_ref()
+            .map(|c| c.compress(&tokens));
+
+        // avoid generic inference issues by materializing the label first
+        let label_string: Option<String> = label.map(Into::into);
+
+        let label_compressed = label_string
+            .as_ref()
+            .and_then(|l| self.compressor.as_ref().map(|c| c.compress(l)));
+
+        let branch_meta_compressed = self
+            .compressor
+            .as_ref()
+            .map(|c| c.compress(&(
+                None::<u32>,
+                None::<u8>,
+                0.0f32,
+                0.0f32,
+            )));
+
         let node = WebNode {
             id,
             tokens: tokens.clone(),
-            label: label.map(Into::into),
+            tokens_compressed,
+            label: label_string,
+            label_compressed,
             score,
 
             // Diverging‑memory defaults
@@ -115,6 +192,8 @@ impl KvWeb {
             branch_kind: None,
             branch_stability: 0.0,
             branch_drift: 0.0,
+
+            branch_meta_compressed,
         };
 
         for t in &tokens {
@@ -125,7 +204,15 @@ impl KvWeb {
 
         // Lazily initialize drift_state map and entry for this node
         if let Some(drift) = &mut self.drift_state {
-            drift.insert(id, NodeDriftState::new());
+            let mut ds = NodeDriftState::new();
+
+            // Compress drift packet immediately
+            if let Some(comp) = &self.compressor {
+                let packet = comp.compress(&(ds.drift_score, ds.reinforcement_score));
+                ds.drift_packet_compressed = Some(packet);
+            }
+
+            drift.insert(id, ds);
         }
 
         id

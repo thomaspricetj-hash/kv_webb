@@ -5,3 +5,5 @@ edition = "2021"
 
 [dependencies]
 serde = { workspace = true }
+bitdrop_v2 = { path = "../bitdrop_v2" }
+bincode = "1.3"

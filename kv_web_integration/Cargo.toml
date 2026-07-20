@@ -4,7 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+serde = { workspace = true }
 kv_web_core = { path = "../kv_web_core" }
 kv_web_runtime = { path = "../kv_web_runtime" }
-serde = { workspace = true }
+bitdrop_v2 = { path = "../bitdrop_v2" }
+
+# CUDA backend required by kv_web_integration/src/gpu.rs
 cust = "0.3.2"

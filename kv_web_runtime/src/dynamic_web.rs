@@ -1,14 +1,15 @@
 //! dynamic_web.rs
-//! Automatic edge generation and dynamic webbing logic.
+//! Automatic edge generation and dynamic webbing logic + BitDrop_v2 max‑tier compression.
 //!
 //! This module makes the KV Web *adaptive*:
 //! - edges strengthen when nodes co‑occur
 //! - edges weaken when unused
 //! - new edges form based on recency or semantic similarity
 //!
-//! This creates a living, self‑adjusting graph.
+//! With BitDrop_v2 wired in, all dynamic‑web operations now produce
+//! reversible compressed packets for drift‑aware and branch‑aware routing.
 
-use kv_web_core::{KvWeb, WebNodeId, EdgeKind};
+use kv_web_core::{KvWeb, WebNodeId, EdgeKind, KvWebCompressor};
 
 /// Dynamic webbing configuration.
 #[derive(Debug, Clone)]
@@ -23,21 +24,24 @@ pub struct DynamicWebConfig {
 /// Extension trait for dynamic webbing.
 pub trait KvWebDynamic {
     /// Strengthen edges between nodes that appear together.
-    fn reinforce_edges(&mut self, nodes: &[WebNodeId], cfg: &DynamicWebConfig);
+    fn reinforce_edges(&mut self, nodes: &[WebNodeId], cfg: &DynamicWebConfig)
+        -> Option<Vec<u8>>;
 
     /// Weaken all edges slightly (global decay).
-    fn decay_edges(&mut self, cfg: &DynamicWebConfig);
+    fn decay_edges(&mut self, cfg: &DynamicWebConfig) -> Option<Vec<u8>>;
 
     /// Auto‑link nodes based on recency.
-    fn link_recent_nodes(&mut self, recent: &[WebNodeId], cfg: &DynamicWebConfig);
+    fn link_recent_nodes(&mut self, recent: &[WebNodeId], cfg: &DynamicWebConfig)
+        -> Option<Vec<u8>>;
 
     /// Normalize edge weights (clamp + cleanup).
-    fn normalize_edges(&mut self, cfg: &DynamicWebConfig);
+    fn normalize_edges(&mut self, cfg: &DynamicWebConfig) -> Option<Vec<u8>>;
 }
 
 impl KvWebDynamic for KvWeb {
-    fn reinforce_edges(&mut self, nodes: &[WebNodeId], cfg: &DynamicWebConfig) {
-        // Strengthen edges between all pairs of nodes.
+    fn reinforce_edges(&mut self, nodes: &[WebNodeId], cfg: &DynamicWebConfig)
+        -> Option<Vec<u8>>
+    {
         for (i, a) in nodes.iter().enumerate() {
             for b in nodes.iter().skip(i + 1) {
                 for edge in &mut self.edges {
@@ -50,35 +54,67 @@ impl KvWebDynamic for KvWeb {
                 }
             }
         }
+
+        // MAX‑TIER BitDrop_v2 compressed reinforcement packet
+        self.compressor.as_ref().map(|c| {
+            c.compress(&(
+                "reinforce_edges",
+                nodes,
+                cfg.strengthen_amount
+            ))
+        })
     }
 
-    fn decay_edges(&mut self, cfg: &DynamicWebConfig) {
-        // Apply global decay.
+    fn decay_edges(&mut self, cfg: &DynamicWebConfig) -> Option<Vec<u8>> {
         for edge in &mut self.edges {
             edge.weight -= cfg.weaken_amount;
         }
+
+        // MAX‑TIER BitDrop_v2 compressed decay packet
+        self.compressor.as_ref().map(|c| {
+            c.compress(&(
+                "decay_edges",
+                cfg.weaken_amount
+            ))
+        })
     }
 
-    fn link_recent_nodes(&mut self, recent: &[WebNodeId], cfg: &DynamicWebConfig) {
-        // Link each node to the next one in the recency list.
+    fn link_recent_nodes(&mut self, recent: &[WebNodeId], cfg: &DynamicWebConfig)
+        -> Option<Vec<u8>>
+    {
         for pair in recent.windows(2) {
             let a = pair[0];
             let b = pair[1];
 
-            // Add a recency edge.
             self.add_edge(a, b, cfg.recency_link_weight, EdgeKind::Positional);
         }
+
+        // MAX‑TIER BitDrop_v2 compressed recency‑link packet
+        self.compressor.as_ref().map(|c| {
+            c.compress(&(
+                "link_recent_nodes",
+                recent,
+                cfg.recency_link_weight
+            ))
+        })
     }
 
-    fn normalize_edges(&mut self, cfg: &DynamicWebConfig) {
-        // Remove edges below min_weight.
+    fn normalize_edges(&mut self, cfg: &DynamicWebConfig) -> Option<Vec<u8>> {
         self.edges.retain(|e| e.weight >= cfg.min_weight);
 
-        // Clamp edges to max_weight.
         for edge in &mut self.edges {
             if edge.weight > cfg.max_weight {
                 edge.weight = cfg.max_weight;
             }
         }
+
+        // MAX‑TIER BitDrop_v2 compressed normalization packet
+        self.compressor.as_ref().map(|c| {
+            c.compress(&(
+                "normalize_edges",
+                cfg.min_weight,
+                cfg.max_weight
+            ))
+        })
     }
 }

@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-kv_web_core = { path = "../kv_web_core" }
 serde = { workspace = true }
+kv_web_core = { path = "../kv_web_core" }
+bitdrop_v2 = { path = "../bitdrop_v2" }

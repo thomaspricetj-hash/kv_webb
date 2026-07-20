@@ -7,7 +7,7 @@
 //! - DOT (Graphviz) export
 //! - region‑focused views
 
-use kv_web_core::{KvWeb, WebNodeId, TokenId, WebEdge};
+use kv_web_core::{KvWeb, WebNodeId};
 use crate::KvWebRuntime;
 use std::fmt::Write;
 
