@@ -1,5 +1,5 @@
 //! kv_web_core
-//! Core data structures for KV‑cache webbing.
+//! Core data structures for KV‑cache webbing + diverging‑memory metadata.
 
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
@@ -20,6 +20,12 @@ pub struct WebNode {
     pub tokens: Vec<TokenId>,
     pub label: Option<String>,
     pub score: f32,
+
+    // Diverging‑memory upgrade: branch metadata
+    pub branch_id: Option<u32>,
+    pub branch_kind: Option<u8>,      // e.g. 0=semantic,1=context,2=motion,3=color,...
+    pub branch_stability: f32,        // higher = more stable branch
+    pub branch_drift: f32,            // higher = more drift from canonical meaning
 }
 
 /// Types of edges between nodes.
@@ -44,12 +50,18 @@ pub struct WebEdge {
 #[derive(Debug, Clone)]
 pub struct NodeDriftState {
     pub last_access: Instant,
+
+    // Diverging‑memory upgrade: drift + reinforcement tracking
+    pub drift_score: f32,
+    pub reinforcement_score: f32,
 }
 
 impl NodeDriftState {
     pub fn new() -> Self {
         Self {
             last_access: Instant::now(),
+            drift_score: 0.0,
+            reinforcement_score: 0.0,
         }
     }
 }
@@ -97,6 +109,12 @@ impl KvWeb {
             tokens: tokens.clone(),
             label: label.map(Into::into),
             score,
+
+            // Diverging‑memory defaults
+            branch_id: None,
+            branch_kind: None,
+            branch_stability: 0.0,
+            branch_drift: 0.0,
         };
 
         for t in &tokens {
@@ -104,6 +122,12 @@ impl KvWeb {
         }
 
         self.nodes.insert(id, node);
+
+        // Lazily initialize drift_state map and entry for this node
+        if let Some(drift) = &mut self.drift_state {
+            drift.insert(id, NodeDriftState::new());
+        }
+
         id
     }
 
