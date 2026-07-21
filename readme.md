@@ -1,9 +1,9 @@
-KV‑Webb Runtime 3.0
-A Polygonal, Diverging‑Semantic Memory Engine for Transformer Models
+📄 KV‑Webb Runtime 3.1
+A Fully Autonomous, Polygonal, Diverging‑Semantic Memory Engine for Transformer Models
 KV‑Webb is a graph‑based cognitive memory system designed to augment or replace traditional KV‑cache behavior.
-Instead of storing raw attention vectors, KV‑Webb builds a living, adaptive, geometric, multi‑branch graph of semantic nodes, edges, drift physics, pruning, reinforcement, and dynamic webbing.
+Instead of storing raw attention vectors, KV‑Webb builds a living, adaptive, geometric, multi‑branch cognitive graph of semantic nodes, edges, drift physics, pruning, reinforcement, dynamic webbing, and now — a global optimization scheduler.
 
-With the polygon‑KV + diverging‑memory upgrade, KV‑Webb now supports:
+With the polygon‑KV + diverging‑memory + BitDrop_v2 + global‑scheduler upgrade, KV‑Webb now supports:
 
 multi‑interpretation semantic nodes
 
@@ -21,9 +21,37 @@ BitDrop_v2 max‑tier compression for nodes, edges, drift packets, heatmaps, pol
 
 GPU‑accelerated attention mask building
 
-This transforms KV‑cache from a stateless buffer into a synthetic cognitive substrate.
+autonomous global optimization across all subsystems
 
-Features
+This transforms KV‑cache from a stateless buffer into a self‑optimizing synthetic cognitive substrate.
+
+⭐ New in KV‑Webb Runtime 3.1
+Tier‑5 Global Optimization Scheduler
+KV‑Webb now includes a unified scheduler that continuously tunes:
+
+drift physics
+
+pruning thresholds
+
+dynamic webbing strength
+
+semantic clustering radius + face index
+
+polygon geometry parameters
+
+BFS depth + PageRank damping
+
+heatmap smoothing
+
+GPU block size + region batching
+
+transformer mask density + routing depth
+
+integration depth + GPU crossover
+
+KV‑Webb is no longer just adaptive —
+it is fully autonomous.
+
 🧠 Semantic Memory
 Token clustering based on cosine similarity
 
@@ -38,6 +66,8 @@ Branch‑aware nodes for multi‑modal meaning
 Compressed token lists (NUMBIN / BD3D)
 
 Polygon‑aware centroid + radius calculations
+
+Scheduler‑tuned semantic thresholds
 
 🕸 Dynamic Webbing
 Automatic edge strengthening when nodes co‑occur
@@ -54,6 +84,8 @@ Polygon‑aware reinforcement
 
 Compressed BFS / PageRank packets
 
+Scheduler‑tuned strengthen/decay rates
+
 ⏳ Drift Physics
 Linear or exponential score decay
 
@@ -69,6 +101,8 @@ Radius‑weighted drift modulation
 
 Compressed drift packets
 
+Scheduler‑tuned decay + reinforcement
+
 ✂️ Pruning System
 Score decay and threshold‑based node removal
 
@@ -81,6 +115,8 @@ Automatic token‑to‑node index rebuild
 Pruning of unstable or drifted branches
 
 Polygon‑aware pruning (centroid distance, face index, radius)
+
+Scheduler‑tuned pruning thresholds
 
 🔍 Graph Operations
 BFS region expansion
@@ -97,6 +133,8 @@ Polygon‑aware relevance ranking
 
 Compressed graph outputs
 
+Scheduler‑tuned BFS depth + damping
+
 🔥 Heatmaps
 Token‑level relevance heatmaps
 
@@ -107,6 +145,8 @@ Polygon‑weighted heatmaps (face bonus, centroid penalty, radius smoothing)
 Normalization and smoothing utilities
 
 Compressed heatmaps (raw / normalized / smoothed)
+
+Scheduler‑tuned smoothing strength
 
 🔗 Transformer Integration
 Region‑based attention masks
@@ -123,7 +163,9 @@ Polygon‑aware semantic routing
 
 GPU‑accelerated mask building
 
-Architecture Overview
+Scheduler‑tuned mask density + routing depth
+
+🧩 Architecture Overview
 Code
 kv_web_core/
     KvWeb
@@ -140,14 +182,15 @@ kv_web_runtime/
     semantic.rs
     graph_ops.rs
     heatmap.rs
+    scheduler.rs   ← NEW (Tier‑5 global optimizer)
 
 kv_web_integration/
     kv_subset.rs
     attention_mask.rs
     gpu.rs
-Each subsystem is independent but designed to work together as a unified geometric cognitive memory engine.
+Each subsystem is independent but coordinated by the global scheduler, forming a unified geometric cognitive memory engine.
 
-Example Usage
+🧪 Example Usage
 rust
 let mut web = KvWeb::new();
 
@@ -167,7 +210,10 @@ web.prune_nodes(&prune_cfg);
 
 // dynamic webbing
 web.reinforce_edges(&[a, b], &dyn_cfg);
-Goals
+
+// global optimization tick
+web.optimize_runtime();   // ← NEW: scheduler + all subsystems
+🎯 Goals
 KV‑Webb aims to provide:
 
 Long‑term memory
@@ -190,10 +236,12 @@ Reversible compression for all memory structures
 
 GPU‑accelerated routing and mask building
 
+Autonomous global optimization
+
 This project explores how transformer models behave when given a persistent, evolving, geometric memory system instead of a stateless KV‑cache.
 
-Why KV‑Webb Matters
-Traditional KV‑cache:
+🚀 Why KV‑Webb Matters
+Traditional KV‑cache
 stores raw vectors
 
 forgets instantly
@@ -206,7 +254,9 @@ cannot represent multiple interpretations
 
 cannot route based on geometry
 
-KV‑Webb:
+cannot self‑optimize
+
+KV‑Webb 3.1
 stores semantic nodes
 
 builds dynamic edges
@@ -228,6 +278,8 @@ compresses memory by 82–96%
 accelerates routing via GPU
 
 routes based on geometry + semantics + stability
+
+self‑optimizes across all subsystems
 
 KV‑Webb is not an optimization —
 it is a cognitive architecture.

@@ -13,6 +13,17 @@
 use kv_web_core::{KvWeb, WebNodeId, KvWebCompressor};
 use crate::KvWebRuntime;
 
+/// Graph ops optimization configuration.
+#[derive(Debug, Clone)]
+pub struct GraphOpsOptimizationConfig {
+    pub min_damping: f32,
+    pub max_damping: f32,
+    pub target_bfs_size: usize,
+    pub max_bfs_size: usize,
+    pub min_depth: usize,
+    pub max_depth: usize,
+}
+
 /// Polygon-aware neighbor weighting.
 /// Nodes in the same polygon face get priority.
 /// Nodes closer in centroid space get boosted.
@@ -152,6 +163,60 @@ pub fn pagerank_compressed(web: &KvWeb, iterations: usize, damping: f32) -> Opti
             iterations,
             damping,
             &pr
+        ))
+    })
+}
+
+/// Max-tier optimization loop for BFS depth and PageRank damping.
+pub fn optimize_graph_ops(
+    web: &KvWeb,
+    root: WebNodeId,
+    depth: &mut usize,
+    damping: &mut f32,
+    cfg: &GraphOpsOptimizationConfig,
+) -> Option<Vec<u8>> {
+    // Measure BFS region size.
+    let bfs_nodes = bfs_region(web, root, *depth);
+    let bfs_size = bfs_nodes.len();
+
+    // Measure PageRank spread (simple span between max and min rank).
+    let pr = pagerank(web, 16, *damping);
+    let mut min_r = f32::MAX;
+    let mut max_r = f32::MIN;
+
+    for (_, r) in &pr {
+        if *r < min_r {
+            min_r = *r;
+        }
+        if *r > max_r {
+            max_r = *r;
+        }
+    }
+
+    let pr_span = if max_r > min_r { max_r - min_r } else { 0.0 };
+
+    // Adjust depth based on BFS size.
+    if bfs_size < cfg.target_bfs_size && *depth < cfg.max_depth {
+        *depth += 1;
+    } else if bfs_size > cfg.max_bfs_size && *depth > cfg.min_depth {
+        *depth -= 1;
+    }
+
+    // Adjust damping based on PageRank span.
+    if pr_span < 0.01 {
+        *damping = (*damping * 1.05).min(cfg.max_damping);
+    } else if pr_span > 0.2 {
+        *damping = (*damping * 0.95).max(cfg.min_damping);
+    }
+
+    web.compressor.as_ref().map(|c| {
+        c.compress(&(
+            "optimize_graph_ops",
+            root,
+            bfs_size,
+            pr_span,
+            *depth,
+            *damping,
         ))
     })
 }

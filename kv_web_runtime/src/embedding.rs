@@ -116,3 +116,57 @@ pub fn build_similarity_edges(
         }
     }
 }
+
+/// Optimization config for embedding-based similarity.
+#[derive(Debug, Clone)]
+pub struct EmbeddingOptimizationConfig {
+    pub min_threshold: f32,
+    pub max_threshold: f32,
+    pub min_weight_scale: f32,
+    pub max_weight_scale: f32,
+    pub target_edge_density: f32,
+    pub max_edge_density: f32,
+}
+
+/// Max-tier optimization loop for embedding similarity.
+/// Adjusts threshold and weight_scale based on resulting semantic edge density.
+pub fn optimize_embedding_similarity(
+    web: &KvWeb,
+    current_threshold: &mut f32,
+    current_weight_scale: &mut f32,
+    opt_cfg: &EmbeddingOptimizationConfig,
+) {
+    if web.nodes.is_empty() {
+        return;
+    }
+
+    let node_count = web.nodes.len() as f32;
+    let edge_count = web
+        .edges
+        .iter()
+        .filter(|e| matches!(e.kind, kv_web_core::EdgeKind::Semantic))
+        .count() as f32;
+
+    let density = if node_count > 0.0 {
+        edge_count / node_count
+    } else {
+        0.0
+    };
+
+    // If density is too low, lower threshold and increase weight_scale slightly.
+    if density < opt_cfg.target_edge_density {
+        *current_threshold =
+            (*current_threshold * 0.95).max(opt_cfg.min_threshold);
+        *current_weight_scale =
+            (*current_weight_scale * 1.05).min(opt_cfg.max_weight_scale);
+    }
+
+    // If density is too high, raise threshold and decrease weight_scale slightly.
+    if density > opt_cfg.max_edge_density {
+        *current_threshold =
+            (*current_threshold * 1.05).min(opt_cfg.max_threshold);
+        *current_weight_scale =
+            (*current_weight_scale * 0.9).max(opt_cfg.min_weight_scale);
+    }
+}
+

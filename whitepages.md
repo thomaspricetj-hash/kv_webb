@@ -1,16 +1,28 @@
-📄 KV‑Web 3.0: A Polygonal, Diverging‑Memory Cognitive Architecture for Transformer Models
-Whitepaper — Version 3.0 (Polygon‑KV + Branch‑Aware + BitDrop_v2 Upgrade)
+📄 KV‑Web 3.1: A Fully Autonomous, Polygonal, Diverging‑Memory Cognitive Architecture
+Whitepaper — Version 3.1 (Global Scheduler + Polygon‑KV + Branch‑Aware + BitDrop_v2)
 
 Abstract
-Traditional transformer KV‑cache stores raw vectors without meaning, structure, or persistence. KV‑Web 3.0 replaces KV‑cache with a polygonal, semantic, multi‑branch cognitive memory graph capable of representing meaning, drift, stability, geometric structure, and multiple interpretations over time.
+Transformers traditionally rely on KV‑cache — a stateless buffer that stores raw vectors without meaning, structure, or persistence. KV‑Web 3.1 replaces KV‑cache with a polygonal, semantic, multi‑branch cognitive memory graph capable of representing meaning, drift, stability, geometric structure, and multiple interpretations over time.
 
-The diverging‑memory upgrade introduces branch‑aware semantic nodes, drift‑tracked meaning evolution, stability‑weighted routing, and multi‑interpretation memory.
+The 3.1 upgrade introduces a global optimization scheduler, enabling KV‑Web to continuously self‑optimize across all subsystems:
 
-The polygon‑KV upgrade adds geometric semantic regions — centroid, radius, face index — enabling geometric routing, polygon‑weighted heatmaps, polygon‑aware pruning, and polygon‑aware BFS/PageRank.
+semantic clustering
 
-The BitDrop_v2 max‑tier compression upgrade adds adaptive, reversible compression for all nodes, edges, drift packets, heatmaps, polygons, and graph operations — reducing memory footprint by 82–96% while enabling GPU‑accelerated retrieval.
+drift physics
 
-KV‑Web 3.0 is not an optimization layer — it is a synthetic cognitive architecture.
+pruning
+
+dynamic webbing
+
+polygonal geometry
+
+GPU routing
+
+transformer KV selection
+
+integration depth tuning
+
+KV‑Web 3.1 is not an optimization layer — it is a fully autonomous synthetic cognitive architecture.
 
 1. Introduction
 Transformers lack long‑term memory. KV‑cache:
@@ -31,11 +43,11 @@ cannot retrieve based on semantics
 
 cannot route based on geometry
 
-KV‑Web 3.0 addresses these limitations by introducing:
+KV‑Web 3.1 addresses these limitations with:
 
 semantic nodes
 
-polygonal geometry (centroid, radius, face index)
+polygonal geometry
 
 episodic drift physics
 
@@ -51,7 +63,9 @@ reversible BitDrop_v2 compression
 
 GPU‑accelerated region masks
 
-This transforms KV‑cache into a persistent, adaptive, geometric, multi‑branch cognitive memory.
+global optimization scheduling
+
+This transforms KV‑cache into a persistent, adaptive, geometric, multi‑branch cognitive memory system that continuously improves itself.
 
 2. System Overview
 2.1 Semantic Memory
@@ -93,12 +107,33 @@ Polygon‑weighted BFS, PageRank
 
 Compressed graph operations
 
-Together, these form a living, geometric, multi‑branch cognitive graph.
+2.4 Autonomous Optimization (NEW in 3.1)
+A global scheduler coordinates:
 
-3. Architecture
+core KV‑Web optimization
+
+integration optimization
+
+transformer KV optimization
+
+GPU mask‑building optimization
+
+KV‑Web becomes a self‑balancing cognitive substrate.
+
+3. Architecture (Updated)
 Code
 +---------------------------+
 |        Transformer        |
++-------------+-------------+
+              |
+              v
++---------------------------+
+|   Global Optimization     |   ← NEW (Tier‑5)
+|        Scheduler          |
+|  - Core KV-Web tuning     |
+|  - Integration tuning     |
+|  - Transformer tuning     |
+|  - GPU tuning             |
 +-------------+-------------+
               |
               v
@@ -132,290 +167,171 @@ Code
 |  - Polygon-Aware Routing  |
 |  - Branch-Aware Routing   |
 +---------------------------+
-4. Core Data Structures
-4.1 WebNode (Upgraded)
-A semantic or episodic memory unit with multiple interpretations and geometric metadata.
+4. Global Optimization Scheduler (NEW)
+KV‑Web 3.1 introduces a Tier‑5 autonomous scheduler that coordinates all optimization loops:
 
-Code
-WebNode {
-    id: WebNodeId,
-    tokens: Vec<TokenId>,
-    score: f32,
-    label: Option<String>,
-
-    // Polygonal geometry
-    polygon: Option<PolygonRegion>,   // centroid, radius, face index
-
-    // Diverging-memory metadata
-    branch_id: Option<u32>,
-    branch_kind: Option<u8>,
-    branch_stability: f32,
-    branch_drift: f32,
-
-    // BitDrop_v2 compressed fields
-    tokens_compressed: Option<Vec<u8>>,
-    label_compressed: Option<Vec<u8>>,
-    branch_meta_compressed: Option<Vec<u8>>,
-}
-4.2 PolygonRegion (New)
-Code
-PolygonRegion {
-    id: u32,
-    centroid: Vec<f32>,
-    radius: f32,
-    face_index: u8,
-}
-4.3 WebEdge
-Code
-WebEdge {
-    from: WebNodeId,
-    to: WebNodeId,
-    weight: f32,
-    kind: EdgeKind,
-}
-4.4 Drift State
-Code
-NodeDriftState {
-    last_access: Instant,
-    drift_score: f32,
-    reinforcement_score: f32,
-    drift_packet_compressed: Option<Vec<u8>>,
-}
-5. Semantic Clustering (Upgraded)
-Clusters now support:
+4.1 Responsibilities
+tune core KV‑Web capacity + compression
 
-polygon formation
+tune integration depth + GPU crossover
 
-centroid calculation
+tune transformer mask density + routing depth
 
-radius calculation
+tune GPU block size + region batching
 
-face‑index assignment
+trigger pruning + drift stabilization
 
-branch splitting
+maintain global semantic clarity
 
-branch merging
+prevent runaway graph growth
 
-drift tracking
+reinforce stable branches
 
-This enables multi‑modal, geometric meaning representation.
+suppress drifted interpretations
 
-6. Dynamic Webbing (Upgraded)
-Strengthening
-Nodes that co‑occur reinforce:
+4.2 Behavior
+The scheduler runs:
 
-edges
+every optimization tick
 
-polygon radius
+after drift spikes
 
-branch stability
+after transformer load spikes
 
-Weakening
-Unused edges decay, drift increases.
+after GPU load changes
 
-Recency Linking
-Recent nodes form episodic chains.
+after KV‑cache growth events
 
-Normalization
-Weak edges are pruned.
+KV‑Web becomes self‑correcting, self‑balancing, and self‑optimizing.
 
-Branch Stabilization
-Stable interpretations gain weight.
+5. Core Data Structures (Updated)
+Your existing sections remain correct — but now they operate under the scheduler’s supervision.
 
-Polygonal Geometry
-All webbing operations now consider:
+6. Semantic Clustering (Updated)
+Clusters now:
 
-centroid distance
+form polygons
 
-radius
+split branches
 
-face index
+merge stable interpretations
 
-BitDrop_v2 Compression
-All webbing operations produce reversible packets.
+adjust radius dynamically
 
-7. Drift Physics (Upgraded)
-Linear Drift
-Code
-score -= decay_rate * elapsed
-branch_drift += drift_rate * elapsed
-Exponential Drift
-Code
-score *= (1 - decay_rate)^elapsed
-branch_stability *= (1 - stability_decay)^elapsed
-Reinforcement
-increases score
+adjust face index based on usage
 
-resets drift
+compress cluster packets
 
-stabilizes active branch
+respond to scheduler tuning
 
-strengthens polygon face
+7. Dynamic Webbing (Updated)
+Dynamic webbing now:
 
-8. Pruning Physics (Polygon‑Aware)
-Pruning removes:
+strengthens edges based on scheduler signals
 
-low‑score nodes
+weakens edges based on drift pressure
 
-low‑weight edges
+adjusts recency link weight dynamically
 
-orphan tokens
+normalizes edges based on global load
 
-high‑drift branches
+stabilizes branches based on scheduler feedback
 
-unstable interpretations
+compresses webbing packets
 
-polygon‑outlier nodes (far from centroid)
+8. Drift Physics (Updated)
+Drift physics now:
 
-This maintains semantic clarity and prevents runaway graph growth.
+responds to scheduler decay tuning
 
-9. Graph Operations (Polygon‑Aware)
-9.1 Region Expansion (BFS)
-Now produces:
+adjusts reinforcement based on global stability
 
-raw BFS region
+compresses drift packets
 
-polygon‑weighted BFS
+stabilizes active branches
 
-BitDrop_v2 compressed BFS packet
+penalizes drifted branches
 
-9.2 Relevance Ranking
-Rank by:
+9. Pruning Physics (Updated)
+Pruning now:
 
-score
+responds to scheduler thresholds
 
-drift‑adjusted score
+removes polygon‑outlier nodes
 
-edge weight sum
+removes unstable branches
 
-PageRank propagation
+removes drifted interpretations
 
-branch stability
+compresses pruning packets
 
-branch drift
+10. Graph Operations (Updated)
+Graph ops now:
 
-polygon face index
+adjust BFS depth based on scheduler
 
-centroid distance
+adjust PageRank damping dynamically
 
-All produce compressed packets.
+compress BFS/PageRank packets
 
-10. Heatmaps (Polygon‑Aware)
-Code
-heat[t] = node.score * (1 - node.branch_drift)
-Upgrades:
+use polygon‑weighted routing
 
-polygon‑weighted heatmaps
+11. Heatmaps (Updated)
+Heatmaps now:
 
-centroid‑distance penalty
+adjust smoothing strength based on scheduler
 
-face‑index bonus
+compress heatmaps
 
-radius‑aware smoothing
+use polygon‑weighted scoring
 
-compressed heatmaps
+12. Transformer Integration (Updated)
+Transformer integration now:
 
-GPU‑accelerated mask building
+tunes mask density
 
-11. Transformer Integration
-11.1 GPU Attention Masks
-Polygon‑weighted region → mask → attention weighting.
+tunes routing depth
 
-11.2 KV Subset Extraction
-Only relevant KV entries are passed to the model.
+tunes GPU crossover threshold
 
-11.3 Polygon‑Aware + Branch‑Aware Routing
-Transformer can:
+uses polygon‑aware + branch‑aware routing
 
-select stable branches
+compresses routing packets
 
-select strong polygon faces
+13. Comparison to KV‑Cache (Updated)
+Add:
 
-ignore drifted branches
+Autonomous optimization → KV‑Cache ❌ / KV‑Web 3.1 ✔
+Global scheduling → KV‑Cache ❌ / KV‑Web 3.1 ✔
+Self‑balancing memory → KV‑Cache ❌ / KV‑Web 3.1 ✔
 
-ignore geometric outliers
+14. Evaluation (Updated)
+Add:
 
-reinforce correct interpretations
+global optimization reduces drift instability
 
-This reduces hallucination and improves semantic focus.
+scheduler prevents runaway graph growth
 
-12. Comparison to KV‑Cache
-Feature	KV‑Cache	KV‑Web 3.0
-Long‑term memory	❌	✔
-Semantic memory	❌	✔
-Polygonal geometry	❌	✔
-Episodic memory	❌	✔
-Drift physics	❌	✔
-Pruning	❌	✔
-Reinforcement	❌	✔
-Dynamic edges	❌	✔
-Meaning retrieval	❌	✔
-Persistence	❌	✔
-Branch‑aware meaning	❌	✔
-Polygon‑aware routing	❌	✔
-Drift‑tracked interpretation	❌	✔
-Stability‑weighted semantics	❌	✔
-Reversible compression	❌	✔
-GPU mask building	❌	✔
+improved semantic clarity
 
+improved long‑range coherence
 
-KV‑Web 3.0 is a cognitive architecture, not an optimization layer.
+reduced hallucination via branch stabilization
 
-13. Evaluation
-Qualitative Improvements
-persistent memory
+GPU + transformer co‑tuning improves inference speed
 
-geometric semantic retrieval
+15. Future Work (Updated)
+Add:
 
-adaptive relevance
+multi‑scheduler cooperative optimization
 
-concept stabilization
+distributed KV‑Web memory across nodes
 
-drift‑based forgetting
+transformer fine‑tuning with scheduler feedback
 
-polygon‑aware pruning
+reinforcement learning for branch selection
 
-branch‑aware meaning selection
+16. Conclusion (Updated)
+KV‑Web 3.1 is now a fully autonomous cognitive architecture.
 
-multi‑interpretation semantic nodes
-
-reversible compressed memory
-
-GPU‑accelerated routing
-
-Quantitative Improvements
-82–96% reduction in memory footprint
-
-faster inference via compressed KV subsets
-
-improved contextual relevance
-
-better long‑range coherence
-
-reduced hallucination via branch stability
-
-more accurate semantic routing
-
-GPU‑accelerated mask building
-
-14. Future Work
-GPU‑accelerated drift physics
-
-multi‑head semantic clustering
-
-hierarchical memory layers
-
-episodic sequence reconstruction
-
-transformer fine‑tuning with KV‑Web feedback
-
-branch‑level reinforcement learning
-
-semantic branch compression
-
-multi‑branch attention heads
-
-15. Conclusion
-KV‑Web 3.0 transforms transformer inference by providing a persistent, geometric, multi‑branch semantic memory system.
-
-With polygonal geometry, diverging‑memory metadata, reversible compression, and GPU‑accelerated routing, KV‑Web becomes a foundation for synthetic cognition.
+With polygonal geometry, diverging‑memory metadata, reversible compression, GPU‑accelerated routing, and a global optimization scheduler, KV‑Web becomes a self‑optimizing synthetic mind.

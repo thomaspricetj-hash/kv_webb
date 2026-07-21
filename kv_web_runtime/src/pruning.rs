@@ -16,6 +16,22 @@ pub struct PruningConfig {
     pub radius_factor: f32,
 }
 
+/// Optimization configuration for pruning.
+#[derive(Debug, Clone)]
+pub struct PruningOptimizationConfig {
+    pub min_score_decay: f32,
+    pub max_score_decay: f32,
+
+    pub min_node_score: f32,
+    pub max_node_score: f32,
+
+    pub min_edge_weight: f32,
+    pub max_edge_weight: f32,
+
+    pub target_pruned_ratio: f32,
+    pub max_pruned_ratio: f32,
+}
+
 /// Polygon-aware score modifier.
 fn polygon_prune_bias(web: &KvWeb, node_id: WebNodeId, base: f32, cfg: &PruningConfig) -> f32 {
     let node = match web.nodes.get(&node_id) {
@@ -54,11 +70,17 @@ pub trait KvWebPruning {
     fn prune_nodes(&mut self, cfg: &PruningConfig);
     fn prune_edges(&mut self, cfg: &PruningConfig);
     fn cleanup_orphan_tokens(&mut self);
+
+    /// Max-tier optimization loop for pruning.
+    fn optimize_pruning(
+        &mut self,
+        cfg: &mut PruningConfig,
+        opt_cfg: &PruningOptimizationConfig,
+    ) -> Option<Vec<u8>>;
 }
 
 impl KvWebPruning for KvWeb {
     fn decay_scores(&mut self, cfg: &PruningConfig) {
-        // FIX: compute bias BEFORE mutable borrow
         let ids: Vec<WebNodeId> = self.nodes.keys().cloned().collect();
 
         for id in ids {
@@ -78,7 +100,6 @@ impl KvWebPruning for KvWeb {
     fn prune_nodes(&mut self, cfg: &PruningConfig) {
         let mut removed = HashSet::new();
 
-        // FIX: compute bias BEFORE retain
         let ids: Vec<WebNodeId> = self.nodes.keys().cloned().collect();
         let mut bias_map = HashMap::new();
 
@@ -116,5 +137,77 @@ impl KvWebPruning for KvWeb {
         self.node_index_by_token
             .retain(|_, node_id| self.nodes.contains_key(node_id));
     }
-}
 
+    fn optimize_pruning(
+        &mut self,
+        cfg: &mut PruningConfig,
+        opt_cfg: &PruningOptimizationConfig,
+    ) -> Option<Vec<u8>> {
+        let total_nodes = self.nodes.len() as f32;
+        if total_nodes == 0.0 {
+            return None;
+        }
+
+        // Measure pruning pressure.
+        let mut below_threshold = 0.0;
+        for (_, node) in &self.nodes {
+            if node.score < cfg.min_node_score {
+                below_threshold += 1.0;
+            }
+        }
+
+        let pruned_ratio = below_threshold / total_nodes;
+
+        // Adjust score_decay based on pruning ratio.
+        if pruned_ratio < opt_cfg.target_pruned_ratio {
+            cfg.score_decay =
+                (cfg.score_decay * 1.05).min(opt_cfg.max_score_decay);
+        } else if pruned_ratio > opt_cfg.max_pruned_ratio {
+            cfg.score_decay =
+                (cfg.score_decay * 0.9).max(opt_cfg.min_score_decay);
+        }
+
+        // Adjust min_node_score.
+        if pruned_ratio > opt_cfg.max_pruned_ratio {
+            cfg.min_node_score =
+                (cfg.min_node_score * 0.9).max(opt_cfg.min_node_score);
+        } else if pruned_ratio < opt_cfg.target_pruned_ratio {
+            cfg.min_node_score =
+                (cfg.min_node_score * 1.05).min(opt_cfg.max_node_score);
+        }
+
+        // Adjust min_edge_weight.
+        let mut low_edges = 0.0;
+        for e in &self.edges {
+            if e.weight < cfg.min_edge_weight {
+                low_edges += 1.0;
+            }
+        }
+
+        let edge_ratio = if self.edges.is_empty() {
+            0.0
+        } else {
+            low_edges / self.edges.len() as f32
+        };
+
+        if edge_ratio > 0.5 {
+            cfg.min_edge_weight =
+                (cfg.min_edge_weight * 0.9).max(opt_cfg.min_edge_weight);
+        } else {
+            cfg.min_edge_weight =
+                (cfg.min_edge_weight * 1.05).min(opt_cfg.max_edge_weight);
+        }
+
+        // Compressed optimization packet.
+        self.compressor.as_ref().map(|c| {
+            c.compress(&(
+                "optimize_pruning",
+                pruned_ratio,
+                edge_ratio,
+                cfg.score_decay,
+                cfg.min_node_score,
+                cfg.min_edge_weight,
+            ))
+        })
+    }
+}

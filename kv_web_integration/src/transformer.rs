@@ -119,3 +119,77 @@ impl<'a> TransformerKV<'a> {
         self.apply_mask(attn, &mask);
     }
 }
+
+// ============================================================================
+// ⭐ MAX‑TIER TRANSFORMER OPTIMIZATION LOOP (added, no logic removed)
+// ============================================================================
+
+/// Optimization config for transformer KV selection.
+#[derive(Debug, Clone)]
+pub struct TransformerOptimizationConfig {
+    pub min_depth: usize,
+    pub max_depth: usize,
+    pub target_mask_density: f32,
+    pub max_mask_density: f32,
+    pub min_gpu_threshold: usize,
+    pub max_gpu_threshold: usize,
+}
+
+/// Optimization state for transformer KV routing.
+#[derive(Debug, Clone)]
+pub struct TransformerOptimizationState {
+    pub depth: usize,
+    pub gpu_threshold: usize,
+}
+
+impl Default for TransformerOptimizationState {
+    fn default() -> Self {
+        Self {
+            depth: 3,
+            gpu_threshold: 512,
+        }
+    }
+}
+
+/// Max‑tier optimization loop for transformer KV routing.
+/// Adjusts depth, mask density, and GPU/CPU crossover.
+pub fn optimize_transformer_kv(
+    transformer: &TransformerKV,
+    root: WebNodeId,
+    state: &mut TransformerOptimizationState,
+    cfg: &TransformerOptimizationConfig,
+) {
+    let kv_len = transformer.cache.len();
+    let mask = transformer.hard_mask(root, state.depth);
+
+    // Compute mask density
+    let mut active = 0.0;
+    for v in &mask {
+        if *v > 0.0 {
+            active += 1.0;
+        }
+    }
+    let density = if kv_len > 0 {
+        active / kv_len as f32
+    } else {
+        0.0
+    };
+
+    // 1) Depth tuning
+    if density < cfg.target_mask_density && state.depth < cfg.max_depth {
+        state.depth += 1;
+    } else if density > cfg.max_mask_density && state.depth > cfg.min_depth {
+        state.depth -= 1;
+    }
+
+    // 2) GPU threshold tuning (fixed: cast to f32, then back to usize)
+    if active < cfg.min_gpu_threshold as f32 {
+        state.gpu_threshold =
+            ((state.gpu_threshold as f32 * 0.9) as usize).max(cfg.min_gpu_threshold);
+    } else if active > cfg.max_gpu_threshold as f32 {
+        state.gpu_threshold =
+            ((state.gpu_threshold as f32 * 1.1) as usize).min(cfg.max_gpu_threshold);
+    }
+
+    // No compression here — transformer optimization is runtime-only.
+}

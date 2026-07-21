@@ -13,6 +13,15 @@
 
 use kv_web_core::KvWeb;
 
+/// Optimization config for heatmaps.
+#[derive(Debug, Clone)]
+pub struct HeatmapOptimizationConfig {
+    pub min_smoothing_strength: f32,
+    pub max_smoothing_strength: f32,
+    pub target_heat_variance: f32,
+    pub max_heat_variance: f32,
+}
+
 /// Polygon-aware score modifier.
 /// Boosts nodes in same polygon face, penalizes centroid distance.
 fn polygon_score_bias(web: &KvWeb, node_score: f32, node_id: kv_web_core::WebNodeId) -> f32 {
@@ -96,4 +105,48 @@ pub fn smooth_heatmap(heat: &mut [f32]) {
     }
 
     heat.copy_from_slice(&out);
+}
+
+/// Max-tier optimization loop for heatmaps.
+/// Adjusts smoothing strength and polygon bias based on heat variance.
+pub fn optimize_heatmap(
+    web: &KvWeb,
+    kv_len: usize,
+    smoothing_strength: &mut f32,
+    cfg: &HeatmapOptimizationConfig,
+) -> Option<Vec<u8>> {
+    let heat = token_score_heatmap(web, kv_len);
+
+    // Compute variance of heatmap.
+    let mut sum = 0.0;
+    let mut sum_sq = 0.0;
+    let mut count = 0.0;
+
+    for v in &heat {
+        sum += *v;
+        sum_sq += v * v;
+        count += 1.0;
+    }
+
+    let mean = sum / count;
+    let variance = (sum_sq / count) - (mean * mean);
+
+    // Adjust smoothing strength based on variance.
+    if variance < cfg.target_heat_variance {
+        *smoothing_strength =
+            (*smoothing_strength * 1.05).min(cfg.max_smoothing_strength);
+    } else if variance > cfg.max_heat_variance {
+        *smoothing_strength =
+            (*smoothing_strength * 0.9).max(cfg.min_smoothing_strength);
+    }
+
+    // Produce compressed optimization packet if compressor exists.
+    web.compressor.as_ref().map(|c| {
+        c.compress(&(
+            "optimize_heatmap",
+            kv_len,
+            variance,
+            *smoothing_strength,
+        ))
+    })
 }

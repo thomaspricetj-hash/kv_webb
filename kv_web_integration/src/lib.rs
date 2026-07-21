@@ -127,3 +127,64 @@ impl<'a> KvWebIntegration<'a> {
         (keys, values)
     }
 }
+
+// ============================================================================
+// MAX‑TIER INTEGRATION OPTIMIZATION LOOP (added, no logic removed)
+// ============================================================================
+
+/// Optimization config for KV‑web integration.
+#[derive(Debug, Clone)]
+pub struct IntegrationOptimizationConfig {
+    pub min_depth: usize,
+    pub max_depth: usize,
+    pub target_region_size: usize,
+    pub max_region_size: usize,
+    pub min_gpu_threshold: usize,
+    pub max_gpu_threshold: usize,
+}
+
+/// Optimization state for KV‑web integration.
+#[derive(Debug, Clone)]
+pub struct IntegrationOptimizationState {
+    pub depth: usize,
+    pub gpu_threshold: usize,
+}
+
+impl Default for IntegrationOptimizationState {
+    fn default() -> Self {
+        Self {
+            depth: 3,
+            gpu_threshold: 512,
+        }
+    }
+}
+
+/// Max‑tier optimization loop for KV‑web integration.
+/// Adjusts region depth and GPU/CPU crossover based on region size.
+pub fn optimize_integration<'a>(
+    integration: &KvWebIntegration<'a>,
+    root: WebNodeId,
+    state: &mut IntegrationOptimizationState,
+    cfg: &IntegrationOptimizationConfig,
+) {
+    let region_tokens = integration.web.tokens_in_region(root, state.depth);
+    let region_size = region_tokens.len();
+
+    // 1) Depth tuning
+    if region_size < cfg.target_region_size && state.depth < cfg.max_depth {
+        state.depth += 1;
+    } else if region_size > cfg.max_region_size && state.depth > cfg.min_depth {
+        state.depth -= 1;
+    }
+
+    // 2) GPU threshold tuning (fixed: cast to f32, then back to usize)
+    if region_size < cfg.min_gpu_threshold {
+        state.gpu_threshold =
+            ((state.gpu_threshold as f32 * 0.9) as usize).max(cfg.min_gpu_threshold);
+    } else if region_size > cfg.max_gpu_threshold {
+        state.gpu_threshold =
+            ((state.gpu_threshold as f32 * 1.1) as usize).min(cfg.max_gpu_threshold);
+    }
+
+    // No compression here — integration optimization is runtime-only.
+}

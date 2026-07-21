@@ -135,3 +135,76 @@ pub fn build_attention_mask_gpu(
 
     mask
 }
+
+// ============================================================================
+// ⭐ MAX‑TIER GPU OPTIMIZATION LOOP (added, no logic removed)
+// ============================================================================
+
+/// Optimization config for GPU mask building.
+#[derive(Debug, Clone)]
+pub struct GpuOptimizationConfig {
+    pub min_region_batch: usize,
+    pub max_region_batch: usize,
+    pub min_gpu_threshold: usize,
+    pub max_gpu_threshold: usize,
+    pub min_block_size: u32,
+    pub max_block_size: u32,
+}
+
+/// GPU optimization state.
+#[derive(Debug, Clone)]
+pub struct GpuOptimizationState {
+    pub region_batch: usize,
+    pub gpu_threshold: usize,
+    pub block_size: u32,
+}
+
+impl Default for GpuOptimizationState {
+    fn default() -> Self {
+        Self {
+            region_batch: 256,
+            gpu_threshold: 512,
+            block_size: 1,
+        }
+    }
+}
+
+/// Max-tier optimization loop for GPU mask building.
+/// Tunes GPU/CPU crossover, batching, and block size.
+pub fn optimize_gpu(
+    web: &KvWeb,
+    root: WebNodeId,
+    depth: usize,
+    kv_len: usize,
+    state: &mut GpuOptimizationState,
+    cfg: &GpuOptimizationConfig,
+) {
+    let region = web.tokens_in_region(root, depth);
+    let region_size = region.len();
+
+    // 1) GPU threshold tuning (fixed: cast to f32, then back to usize)
+    if region_size < cfg.min_gpu_threshold {
+        state.gpu_threshold =
+            ((state.gpu_threshold as f32 * 0.9) as usize).max(cfg.min_gpu_threshold);
+    } else if region_size > cfg.max_gpu_threshold {
+        state.gpu_threshold =
+            ((state.gpu_threshold as f32 * 1.1) as usize).min(cfg.max_gpu_threshold);
+    }
+
+    // 2) Region batching tuning
+    if region_size > state.region_batch {
+        state.region_batch = (state.region_batch * 2).min(cfg.max_region_batch);
+    } else {
+        state.region_batch = (state.region_batch / 2).max(cfg.min_region_batch);
+    }
+
+    // 3) Block size tuning
+    if region_size > 1024 {
+        state.block_size = (state.block_size * 2).min(cfg.max_block_size);
+    } else {
+        state.block_size = (state.block_size / 2).max(cfg.min_block_size);
+    }
+
+    // No compression here — GPU tuning is runtime-only.
+}
+

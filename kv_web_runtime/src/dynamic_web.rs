@@ -21,6 +21,19 @@ pub struct DynamicWebConfig {
     pub recency_link_weight: f32, // weight for auto‑linking recent nodes
 }
 
+/// Dynamic web optimization configuration.
+#[derive(Debug, Clone)]
+pub struct DynamicWebOptimizationConfig {
+    pub min_strengthen_amount: f32,
+    pub max_strengthen_amount: f32,
+    pub min_weaken_amount: f32,
+    pub max_weaken_amount: f32,
+    pub min_weight_span: f32,
+    pub max_weight_span: f32,
+    pub min_recency_link_weight: f32,
+    pub max_recency_link_weight: f32,
+}
+
 /// Extension trait for dynamic webbing.
 pub trait KvWebDynamic {
     /// Strengthen edges between nodes that appear together.
@@ -36,6 +49,13 @@ pub trait KvWebDynamic {
 
     /// Normalize edge weights (clamp + cleanup).
     fn normalize_edges(&mut self, cfg: &DynamicWebConfig) -> Option<Vec<u8>>;
+
+    /// Max‑tier optimization loop over dynamic web parameters.
+    fn optimize_dynamic_web(
+        &mut self,
+        cfg: &mut DynamicWebConfig,
+        opt_cfg: &DynamicWebOptimizationConfig,
+    ) -> Option<Vec<u8>>;
 }
 
 impl KvWebDynamic for KvWeb {
@@ -114,6 +134,74 @@ impl KvWebDynamic for KvWeb {
                 "normalize_edges",
                 cfg.min_weight,
                 cfg.max_weight
+            ))
+        })
+    }
+
+    fn optimize_dynamic_web(
+        &mut self,
+        cfg: &mut DynamicWebConfig,
+        opt_cfg: &DynamicWebOptimizationConfig,
+    ) -> Option<Vec<u8>> {
+        if self.edges.is_empty() {
+            return None;
+        }
+
+        let mut min_w = f32::MAX;
+        let mut max_w = f32::MIN;
+        let mut total_w = 0.0;
+        let mut count = 0.0;
+
+        for edge in &self.edges {
+            if edge.weight < min_w {
+                min_w = edge.weight;
+            }
+            if edge.weight > max_w {
+                max_w = edge.weight;
+            }
+            total_w += edge.weight;
+            count += 1.0;
+        }
+
+        let avg_w = total_w / count;
+        let span = if max_w > min_w { max_w - min_w } else { 0.0 };
+
+        // Tune strengthen_amount based on span: too narrow → strengthen more, too wide → strengthen less.
+        if span < opt_cfg.min_weight_span {
+            cfg.strengthen_amount =
+                (cfg.strengthen_amount * 1.05).min(opt_cfg.max_strengthen_amount);
+        } else if span > opt_cfg.max_weight_span {
+            cfg.strengthen_amount =
+                (cfg.strengthen_amount * 0.9).max(opt_cfg.min_strengthen_amount);
+        }
+
+        // Tune weaken_amount based on average weight: too high → weaken more, too low → weaken less.
+        if avg_w > cfg.max_weight * 0.8 {
+            cfg.weaken_amount =
+                (cfg.weaken_amount * 1.05).min(opt_cfg.max_weaken_amount);
+        } else if avg_w < cfg.min_weight * 1.2 {
+            cfg.weaken_amount =
+                (cfg.weaken_amount * 0.9).max(opt_cfg.min_weaken_amount);
+        }
+
+        // Tune recency_link_weight based on span: keep recent links from dominating or disappearing.
+        if span > opt_cfg.max_weight_span {
+            cfg.recency_link_weight =
+                (cfg.recency_link_weight * 0.9).max(opt_cfg.min_recency_link_weight);
+        } else if span < opt_cfg.min_weight_span {
+            cfg.recency_link_weight =
+                (cfg.recency_link_weight * 1.05).min(opt_cfg.max_recency_link_weight);
+        }
+
+        // MAX‑TIER BitDrop_v2 compressed optimization packet
+        self.compressor.as_ref().map(|c| {
+            c.compress(&(
+                "optimize_dynamic_web",
+                cfg.strengthen_amount,
+                cfg.weaken_amount,
+                cfg.recency_link_weight,
+                avg_w,
+                span,
             ))
         })
     }

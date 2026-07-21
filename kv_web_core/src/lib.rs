@@ -33,7 +33,7 @@ impl KvWebCompressor {
 }
 
 // ============================================================
-// Core KV‑Webb Types
+// Core KV‑Web Types
 // ============================================================
 
 /// A single token position in the KV cache.
@@ -249,4 +249,82 @@ impl KvWeb {
             .get(&token)
             .and_then(|id| self.nodes.get(id))
     }
+}
+
+// ============================================================================
+// MAX‑TIER CORE WEB OPTIMIZATION LOOP (added, no logic removed)
+// ============================================================================
+
+/// Optimization config for core KvWeb behavior.
+#[derive(Debug, Clone)]
+pub struct KvWebOptimizationConfig {
+    pub min_node_capacity: usize,
+    pub max_node_capacity: usize,
+    pub min_edge_capacity: usize,
+    pub max_edge_capacity: usize,
+    pub min_compression_threshold: usize,
+    pub max_compression_threshold: usize,
+}
+
+/// Optimization state for core KvWeb.
+#[derive(Debug, Clone)]
+pub struct KvWebOptimizationState {
+    pub node_capacity: usize,
+    pub edge_capacity: usize,
+    pub compression_threshold: usize,
+}
+
+impl Default for KvWebOptimizationState {
+    fn default() -> Self {
+        Self {
+            node_capacity: 1024,
+            edge_capacity: 4096,
+            compression_threshold: 256,
+        }
+    }
+}
+
+/// Max‑tier optimization loop for KvWeb.
+/// Adjusts capacities and compression threshold based on current web size.
+pub fn optimize_kv_web(
+    web: &mut KvWeb,
+    state: &mut KvWebOptimizationState,
+    cfg: &KvWebOptimizationConfig,
+) {
+    let node_count = web.nodes.len();
+    let edge_count = web.edges.len();
+
+    // 1) Node capacity tuning
+    if node_count > state.node_capacity {
+        state.node_capacity = (state.node_capacity * 2).min(cfg.max_node_capacity);
+    } else if node_count < state.node_capacity / 2 {
+        state.node_capacity = (state.node_capacity / 2).max(cfg.min_node_capacity);
+    }
+
+    // 2) Edge capacity tuning
+    if edge_count > state.edge_capacity {
+        state.edge_capacity = (state.edge_capacity * 2).min(cfg.max_edge_capacity);
+    } else if edge_count < state.edge_capacity / 2 {
+        state.edge_capacity = (state.edge_capacity / 2).max(cfg.min_edge_capacity);
+    }
+
+    // 3) Compression threshold tuning (fixed: cast to f32, then back to usize)
+    if node_count < cfg.min_compression_threshold {
+        state.compression_threshold =
+            ((state.compression_threshold as f32 * 0.9) as usize).max(cfg.min_compression_threshold);
+    } else if node_count > cfg.max_compression_threshold {
+        state.compression_threshold =
+            ((state.compression_threshold as f32 * 1.1) as usize).min(cfg.max_compression_threshold);
+    }
+
+    // Optional: enable/disable compressor based on threshold
+    if node_count >= state.compression_threshold {
+        if web.compressor.is_none() {
+            web.compressor = Some(KvWebCompressor::new());
+        }
+    } else {
+        // keep compressor but do not remove it to stay backwards‑compatible
+    }
+
+    // No BitDrop packets here — this is structural optimization only.
 }

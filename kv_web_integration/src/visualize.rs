@@ -158,3 +158,62 @@ pub fn region_to_dot(web: &KvWeb, root: WebNodeId, depth: usize) -> String {
 
     out
 }
+
+// ============================================================================
+// ⭐ MAX‑TIER VISUALIZATION OPTIMIZATION LOOP (added, no logic removed)
+// ============================================================================
+
+/// Optimization config for visualization.
+#[derive(Debug, Clone)]
+pub struct VisualizationOptimizationConfig {
+    pub min_region_depth: usize,
+    pub max_region_depth: usize,
+    pub target_region_size: usize,
+    pub max_region_size: usize,
+    pub min_label_detail: usize,
+    pub max_label_detail: usize,
+}
+
+/// Optimization state for visualization.
+#[derive(Debug, Clone)]
+pub struct VisualizationOptimizationState {
+    pub region_depth: usize,
+    pub label_detail: usize,
+}
+
+impl Default for VisualizationOptimizationState {
+    fn default() -> Self {
+        Self {
+            region_depth: 3,
+            label_detail: 32,
+        }
+    }
+}
+
+/// Max‑tier optimization loop for visualization.
+/// Adjusts region depth and label verbosity based on graph density.
+pub fn optimize_visualization(
+    web: &KvWeb,
+    root: WebNodeId,
+    state: &mut VisualizationOptimizationState,
+    cfg: &VisualizationOptimizationConfig,
+) {
+    let region = web.nodes_in_region(root, state.region_depth);
+    let region_size = region.len();
+
+    // 1) Depth tuning
+    if region_size < cfg.target_region_size && state.region_depth < cfg.max_region_depth {
+        state.region_depth += 1;
+    } else if region_size > cfg.max_region_size && state.region_depth > cfg.min_region_depth {
+        state.region_depth -= 1;
+    }
+
+    // 2) Label detail tuning
+    if region_size > cfg.max_region_size {
+        state.label_detail = (state.label_detail / 2).max(cfg.min_label_detail);
+    } else {
+        state.label_detail = (state.label_detail * 2).min(cfg.max_label_detail);
+    }
+
+    // No compression — visualization tuning is diagnostic-only.
+}

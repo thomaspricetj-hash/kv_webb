@@ -28,6 +28,11 @@ pub struct Cluster {
 
     // MAX‑TIER BitDrop_v2 compressed payload
     pub compressed: Option<Vec<u8>>,
+
+    // Optimization metadata
+    pub routing_error: f32,
+    pub radius_error: f32,
+    pub face_index_confidence: f32,
 }
 
 /// Clustering configuration.
@@ -35,6 +40,16 @@ pub struct Cluster {
 pub struct ClusterConfig {
     pub min_score: f32,
     pub max_cluster_size: usize,
+}
+
+/// Optimization configuration for clusters.
+#[derive(Debug, Clone)]
+pub struct ClusterOptimizationConfig {
+    pub min_radius: f32,
+    pub max_radius: f32,
+    pub target_face_index_smoothness: f32,
+    pub min_score_reinforce: f32,
+    pub max_routing_error: f32,
 }
 
 pub struct KvWebClusters {
@@ -88,6 +103,9 @@ impl KvWebClusters {
                         ))
                     });
 
+                    let (routing_error, radius_error, face_index_confidence) =
+                        evaluate_cluster_geometry(web, &chunk, polygon.as_ref());
+
                     clusters.push(Cluster {
                         id: current_id,
                         nodes: chunk.clone(),
@@ -95,6 +113,9 @@ impl KvWebClusters {
                         score,
                         polygon,
                         compressed,
+                        routing_error,
+                        radius_error,
+                        face_index_confidence,
                     });
 
                     current_id += 1;
@@ -118,6 +139,9 @@ impl KvWebClusters {
                     ))
                 });
 
+                let (routing_error, radius_error, face_index_confidence) =
+                    evaluate_cluster_geometry(web, &chunk, polygon.as_ref());
+
                 clusters.push(Cluster {
                     id: current_id,
                     nodes: chunk.clone(),
@@ -125,6 +149,9 @@ impl KvWebClusters {
                     score,
                     polygon,
                     compressed,
+                    routing_error,
+                    radius_error,
+                    face_index_confidence,
                 });
 
                 current_id += 1;
@@ -134,6 +161,71 @@ impl KvWebClusters {
         Self {
             clusters,
             compressor,
+        }
+    }
+
+    /// Max‑tier optimization loop over polygonal clusters.
+    ///
+    /// This loop:
+    /// - evaluates geometry quality (radius, centroid fit, face index confidence)
+    /// - adjusts polygon radius within bounds
+    /// - nudges centroid toward high‑score / high‑connectivity nodes
+    /// - reinforces high‑score clusters and de‑emphasizes weak ones
+    /// - keeps compressed payloads in sync with updated metadata
+    pub fn optimize(
+        &mut self,
+        web: &KvWeb,
+        opt_cfg: &ClusterOptimizationConfig,
+    ) {
+        for cluster in &mut self.clusters {
+            // Skip clusters with no polygon metadata.
+            let polygon = match cluster.polygon.as_mut() {
+                Some(p) => p,
+                None => continue,
+            };
+
+            // Re‑evaluate geometry metrics.
+            let (routing_error, radius_error, face_index_confidence) =
+                evaluate_cluster_geometry(web, &cluster.nodes, Some(polygon));
+
+            cluster.routing_error = routing_error;
+            cluster.radius_error = radius_error;
+            cluster.face_index_confidence = face_index_confidence;
+
+            // 1) Radius optimization: clamp and smooth radius into configured bounds.
+            if polygon.radius < opt_cfg.min_radius {
+                polygon.radius = (polygon.radius + opt_cfg.min_radius) * 0.5;
+            } else if polygon.radius > opt_cfg.max_radius {
+                polygon.radius = (polygon.radius + opt_cfg.max_radius) * 0.5;
+            }
+
+            // 2) Centroid optimization: bias centroid toward high‑score / high‑connectivity nodes.
+            optimize_centroid(web, &cluster.nodes, polygon);
+
+            // 3) Face index optimization: smooth face index toward target confidence.
+            optimize_face_index(polygon, face_index_confidence, opt_cfg.target_face_index_smoothness);
+
+            // 4) Cluster score reinforcement: boost strong clusters, damp weak ones.
+            if cluster.score >= opt_cfg.min_score_reinforce && routing_error <= opt_cfg.max_routing_error {
+                cluster.score = (cluster.score * 1.05).min(1.0);
+            } else {
+                cluster.score *= 0.97;
+            }
+
+            // 5) Keep compressed payload in sync with updated metadata.
+            if let Some(compressor) = &self.compressor {
+                if let Some(label) = &cluster.label {
+                    cluster.compressed = Some(
+                        compressor.compress(&(
+                            cluster.id,
+                            &cluster.nodes,
+                            label,
+                            cluster.score,
+                            cluster.polygon.as_ref(),
+                        ))
+                    );
+                }
+            }
         }
     }
 }
@@ -230,5 +322,111 @@ fn avg_score(web: &KvWeb, nodes: &[WebNodeId]) -> f32 {
     } else {
         sum / count as f32
     }
+}
+
+/// Evaluate geometry quality for a cluster: routing error, radius error, face index confidence.
+fn evaluate_cluster_geometry(
+    web: &KvWeb,
+    nodes: &[WebNodeId],
+    polygon: Option<&PolygonRegion>,
+) -> (f32, f32, f32) {
+    if nodes.is_empty() {
+        return (0.0, 0.0, 0.0);
+    }
+
+    let mut routing_error = 0.0;
+    let mut radius_error = 0.0;
+    let mut count = 0.0;
+
+    if let Some(poly) = polygon {
+        for id in nodes {
+            if let Some(node) = web.nodes.get(id) {
+                let conn = web.edges.iter().filter(|e| e.from == node.id).count() as f32;
+
+                let d = (node.score - poly.centroid[0]).abs()
+                    + ((node.tokens.len() as f32) - poly.centroid[1]).abs()
+                    + (conn - poly.centroid[2]).abs();
+
+                routing_error += d;
+
+                let r_err = (d - poly.radius).abs();
+                radius_error += r_err;
+
+                count += 1.0;
+            }
+        }
+    }
+
+    if count > 0.0 {
+        routing_error /= count;
+        radius_error /= count;
+    }
+
+    // Face index confidence: higher when radius is within a reasonable band.
+    let face_index_confidence = if let Some(poly) = polygon {
+        let r = poly.radius;
+        if r < 1.0 {
+            0.95
+        } else if r < 3.0 {
+            0.85
+        } else if r < 6.0 {
+            0.7
+        } else {
+            0.5
+        }
+    } else {
+        0.0
+    };
+
+    (routing_error, radius_error, face_index_confidence)
+}
+
+/// Optimize centroid toward high‑score / high‑connectivity nodes.
+fn optimize_centroid(web: &KvWeb, nodes: &[WebNodeId], polygon: &mut PolygonRegion) {
+    if nodes.is_empty() {
+        return;
+    }
+
+    let mut best_score = f32::MIN;
+    let mut best_centroid = polygon.centroid.clone();
+
+    for id in nodes {
+        if let Some(node) = web.nodes.get(id) {
+            let conn = web.edges.iter().filter(|e| e.from == node.id).count() as f32;
+            let score = node.score + (conn * 0.01);
+
+            if score > best_score {
+                best_score = score;
+                best_centroid[0] = node.score;
+                best_centroid[1] = node.tokens.len() as f32;
+                best_centroid[2] = conn;
+            }
+        }
+    }
+
+    // Smoothly move centroid toward best candidate.
+    for i in 0..polygon.centroid.len() {
+        polygon.centroid[i] = (polygon.centroid[i] * 0.7) + (best_centroid[i] * 0.3);
+    }
+}
+
+/// Optimize face index based on confidence and target smoothness.
+fn optimize_face_index(
+    polygon: &mut PolygonRegion,
+    confidence: f32,
+    target_smoothness: f32,
+) {
+    // Higher confidence → keep face index stable, lower confidence → nudge toward mid‑range.
+    let mut target_face = polygon.face_index as f32;
+
+    if confidence < 0.6 {
+        // Nudge toward a more neutral face index.
+        target_face = 1.5;
+    }
+
+    let current = polygon.face_index as f32;
+    let blended = current * (1.0 - target_smoothness) + target_face * target_smoothness;
+
+    polygon.face_index = blended.round() as u8;
 }
 

@@ -19,33 +19,18 @@ use std::collections::{HashSet, VecDeque};
 /// Runtime extensions for KvWeb.
 /// This is intentionally separate from the core crate so the core stays pure.
 pub trait KvWebRuntime {
-    /// Get direct neighbor nodes (outgoing edges only).
     fn neighbors(&self, node: WebNodeId) -> Vec<&WebNode>;
-
-    /// Depth‑limited region query.
-    /// Returns all tokens reachable from `root` within `depth` hops.
     fn tokens_in_region(&self, root: WebNodeId, depth: usize) -> HashSet<TokenId>;
-
-    /// Same as above, but returns a compressed BitDrop snapshot.
     fn tokens_in_region_compressed(&self, root: WebNodeId, depth: usize) -> Option<Vec<u8>>;
-
-    /// Get all nodes reachable within `depth` hops.
     fn nodes_in_region(&self, root: WebNodeId, depth: usize) -> HashSet<WebNodeId>;
-
-    /// Compressed region snapshot.
     fn nodes_in_region_compressed(&self, root: WebNodeId, depth: usize) -> Option<Vec<u8>>;
-
-    /// Compute a simple region score (sum of node scores).
     fn region_score(&self, root: WebNodeId, depth: usize) -> f32;
-
-    /// Prune nodes below a score threshold.
     fn prune_low_score(&mut self, min_score: f32);
-
-    /// Merge two nodes into one (simple union).
     fn merge_nodes(&mut self, a: WebNodeId, b: WebNodeId) -> WebNodeId;
-
-    /// Merge nodes + compressed metadata.
     fn merge_nodes_compressed(&mut self, a: WebNodeId, b: WebNodeId) -> Option<Vec<u8>>;
+
+    /// MAX‑TIER unified optimization loop.
+    fn optimize_runtime(&mut self);
 }
 
 /// Polygon‑aware neighbor bias (same‑face, centroid‑close).
@@ -78,6 +63,50 @@ fn polygon_neighbor_bias(web: &KvWeb, a: WebNodeId, b: WebNodeId) -> f32 {
     let penalty = (dist / radius).min(0.5);
 
     face_bonus - penalty
+}
+
+// ============================================================================
+// MAX‑TIER RUNTIME SCHEDULER (local to kv_web_runtime)
+// ============================================================================
+
+#[derive(Debug, Clone)]
+pub struct RuntimeSchedulerConfig {
+    pub default_root: WebNodeId,
+    pub default_depth: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct RuntimeSchedulerState {
+    pub ticks: usize,
+}
+
+impl Default for RuntimeSchedulerState {
+    fn default() -> Self {
+        Self { ticks: 0 }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RuntimeScheduler {
+    pub cfg: RuntimeSchedulerConfig,
+    pub state: RuntimeSchedulerState,
+}
+
+impl RuntimeScheduler {
+    pub fn new(cfg: RuntimeSchedulerConfig) -> Self {
+        Self {
+            cfg,
+            state: RuntimeSchedulerState::default(),
+        }
+    }
+
+    pub fn tick(&mut self, web: &mut KvWeb) {
+        self.state.ticks += 1;
+
+        // Simple global sanity pass: prune extremely low scores
+        let min_score = 0.0;
+        web.prune_low_score(min_score);
+    }
 }
 
 impl KvWebRuntime for KvWeb {
@@ -204,7 +233,6 @@ impl KvWebRuntime for KvWeb {
                 label = nb.label.clone();
             }
 
-            // merge polygon metadata if both have it
             if let (Some(pa), Some(pb)) = (polygon.clone(), nb.polygon.clone()) {
                 let mut centroid = pa.centroid.clone();
                 if centroid.len() == pb.centroid.len() {
@@ -213,11 +241,7 @@ impl KvWebRuntime for KvWeb {
                     }
                 }
                 let radius = (pa.radius + pb.radius) / 2.0;
-                let face_index = if pa.face_index == pb.face_index {
-                    pa.face_index
-                } else {
-                    pa.face_index.max(pb.face_index)
-                };
+                let face_index = pa.face_index.max(pb.face_index);
 
                 polygon = Some(kv_web_core::PolygonRegion {
                     id: pa.id,
@@ -275,6 +299,137 @@ impl KvWebRuntime for KvWeb {
             ))
         })
     }
+
+    // -------------------------------------------------------------------------
+    // ⭐ MAX‑TIER UNIFIED OPTIMIZATION LOOP
+    // -------------------------------------------------------------------------
+    fn optimize_runtime(&mut self) {
+        use crate::{
+            cluster::KvWebClusters,
+            dynamic_web::{DynamicWebConfig, DynamicWebOptimizationConfig, KvWebDynamic},
+            drift::{DriftConfig, DriftOptimizationConfig, KvWebDrift},
+            pruning::{PruningConfig, PruningOptimizationConfig, KvWebPruning},
+            embedding::EmbeddingOptimizationConfig,
+            graph_ops::{GraphOpsOptimizationConfig, optimize_graph_ops},
+            heatmap::{HeatmapOptimizationConfig, optimize_heatmap},
+            semantic::{SemanticOptimizationConfig, KvWebSemantic},
+        };
+
+        // 1) Drift optimization
+        let mut drift_cfg = DriftConfig {
+            decay_rate: 0.01,
+            edge_decay_rate: 0.01,
+            mode: drift::DriftMode::Exponential,
+            reinforcement_amount: 0.05,
+        };
+        let drift_opt = DriftOptimizationConfig {
+            min_decay_rate: 0.001,
+            max_decay_rate: 0.05,
+            min_edge_decay_rate: 0.001,
+            max_edge_decay_rate: 0.05,
+            max_allowed_score_drop: 0.5,
+            min_reinforcement_amount: 0.01,
+            max_reinforcement_amount: 0.2,
+        };
+        self.optimize_drift(&mut drift_cfg, &drift_opt);
+
+        // 2) Dynamic web optimization
+        let mut dyn_cfg = DynamicWebConfig {
+            strengthen_amount: 0.05,
+            weaken_amount: 0.01,
+            min_weight: 0.01,
+            max_weight: 2.0,
+            recency_link_weight: 0.05,
+        };
+        let dyn_opt = DynamicWebOptimizationConfig {
+            min_strengthen_amount: 0.01,
+            max_strengthen_amount: 0.2,
+            min_weaken_amount: 0.001,
+            max_weaken_amount: 0.05,
+            min_weight_span: 0.1,
+            max_weight_span: 2.0,
+            min_recency_link_weight: 0.01,
+            max_recency_link_weight: 0.2,
+        };
+        self.optimize_dynamic_web(&mut dyn_cfg, &dyn_opt);
+
+        // 3) Pruning optimization
+        let mut prune_cfg = PruningConfig {
+            score_decay: 0.01,
+            min_node_score: 0.1,
+            min_edge_weight: 0.01,
+            face_bonus: 0.1,
+            centroid_penalty: 0.1,
+            radius_factor: 1.0,
+        };
+        let prune_opt = PruningOptimizationConfig {
+            min_score_decay: 0.001,
+            max_score_decay: 0.05,
+            min_node_score: 0.05,
+            max_node_score: 1.0,
+            min_edge_weight: 0.001,
+            max_edge_weight: 0.2,
+            target_pruned_ratio: 0.1,
+            max_pruned_ratio: 0.4,
+        };
+        self.optimize_pruning(&mut prune_cfg, &prune_opt);
+
+        // 4) Semantic optimization
+        let mut sim_threshold = 0.7;
+        let sem_opt = SemanticOptimizationConfig {
+            min_similarity_threshold: 0.4,
+            max_similarity_threshold: 0.95,
+            target_cluster_size: 5,
+            max_cluster_size: 20,
+            min_radius: 0.3,
+            max_radius: 0.9,
+        };
+        let embeddings = std::collections::HashMap::new();
+        self.optimize_semantic(&embeddings, &mut sim_threshold, &sem_opt);
+
+        // 5) Graph ops optimization
+        let mut depth = 3;
+        let mut damping = 0.85;
+        let graph_opt = GraphOpsOptimizationConfig {
+            min_damping: 0.5,
+            max_damping: 0.95,
+            target_bfs_size: 10,
+            max_bfs_size: 50,
+            min_depth: 1,
+            max_depth: 8,
+        };
+        optimize_graph_ops(self, WebNodeId(0), &mut depth, &mut damping, &graph_opt);
+
+        // 6) Heatmap optimization
+        let mut smoothing_strength = 1.0;
+        let heat_opt = HeatmapOptimizationConfig {
+            min_smoothing_strength: 0.5,
+            max_smoothing_strength: 2.0,
+            target_heat_variance: 0.05,
+            max_heat_variance: 0.2,
+        };
+        optimize_heatmap(self, 4096, &mut smoothing_strength, &heat_opt);
+
+        // 7) Cluster optimization
+        let cfg = cluster::ClusterConfig {
+            min_score: 0.1,
+            max_cluster_size: 50,
+        };
+        let mut clusters = cluster::KvWebClusters::from_web(self, &cfg);
+        let cluster_opt = cluster::ClusterOptimizationConfig {
+            min_radius: 0.1,
+            max_radius: 5.0,
+            target_face_index_smoothness: 0.2,
+            min_score_reinforce: 0.2,
+            max_routing_error: 1.0,
+        };
+        clusters.optimize(self, &cluster_opt);
+
+        // 8) Runtime scheduler tick (max‑tier global pass)
+        let mut scheduler = RuntimeScheduler::new(RuntimeSchedulerConfig {
+            default_root: WebNodeId(0),
+            default_depth: 3,
+        });
+        scheduler.tick(self);
+    }
 }
-
-

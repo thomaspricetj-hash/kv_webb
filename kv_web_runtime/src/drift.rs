@@ -29,6 +29,18 @@ pub struct DriftConfig {
     pub reinforcement_amount: f32, // score bump when node is accessed
 }
 
+/// Drift optimization configuration.
+#[derive(Debug, Clone)]
+pub struct DriftOptimizationConfig {
+    pub min_decay_rate: f32,
+    pub max_decay_rate: f32,
+    pub min_edge_decay_rate: f32,
+    pub max_edge_decay_rate: f32,
+    pub max_allowed_score_drop: f32,
+    pub min_reinforcement_amount: f32,
+    pub max_reinforcement_amount: f32,
+}
+
 /// Extension trait for drift physics.
 pub trait KvWebDrift {
     /// Initialize drift state for all nodes.
@@ -45,6 +57,14 @@ pub trait KvWebDrift {
     /// Reinforce a node (called when node is accessed).
     /// Returns an optional compressed reinforcement packet.
     fn reinforce_node(&mut self, node: WebNodeId, cfg: &DriftConfig) -> Option<Vec<u8>>;
+
+    /// Max‑tier optimization loop over drift parameters and behavior.
+    /// This keeps decay and reinforcement tuned to observed score dynamics.
+    fn optimize_drift(
+        &mut self,
+        cfg: &mut DriftConfig,
+        opt_cfg: &DriftOptimizationConfig,
+    ) -> Option<Vec<u8>>;
 }
 
 impl KvWebDrift for KvWeb {
@@ -162,6 +182,72 @@ impl KvWebDrift for KvWeb {
             ))
         })
     }
+
+    fn optimize_drift(
+        &mut self,
+        cfg: &mut DriftConfig,
+        opt_cfg: &DriftOptimizationConfig,
+    ) -> Option<Vec<u8>> {
+        // Measure score dynamics across nodes.
+        let mut total_score: f32 = 0.0;
+        let mut min_score: f32 = f32::MAX;
+        let mut max_score: f32 = f32::MIN;
+        let mut count: f32 = 0.0;
+
+        for (_, node) in &self.nodes {
+            total_score += node.score;
+            if node.score < min_score {
+                min_score = node.score;
+            }
+            if node.score > max_score {
+                max_score = node.score;
+            }
+            count += 1.0;
+        }
+
+        let avg_score = if count > 0.0 { total_score / count } else { 0.0 };
+        let score_span = if max_score > min_score {
+            max_score - min_score
+        } else {
+            0.0
+        };
+
+        // Adjust decay rate based on observed score span.
+        if score_span > opt_cfg.max_allowed_score_drop {
+            cfg.decay_rate = (cfg.decay_rate * 0.9).max(opt_cfg.min_decay_rate);
+        } else if score_span < opt_cfg.max_allowed_score_drop * 0.5 {
+            cfg.decay_rate = (cfg.decay_rate * 1.05).min(opt_cfg.max_decay_rate);
+        }
+
+        // Adjust edge decay rate similarly.
+        if score_span > opt_cfg.max_allowed_score_drop {
+            cfg.edge_decay_rate = (cfg.edge_decay_rate * 0.9).max(opt_cfg.min_edge_decay_rate);
+        } else if score_span < opt_cfg.max_allowed_score_drop * 0.5 {
+            cfg.edge_decay_rate = (cfg.edge_decay_rate * 1.05).min(opt_cfg.max_edge_decay_rate);
+        }
+
+        // Adjust reinforcement amount based on average score.
+        if avg_score < 0.3 {
+            cfg.reinforcement_amount =
+                (cfg.reinforcement_amount * 1.1).min(opt_cfg.max_reinforcement_amount);
+        } else if avg_score > 0.7 {
+            cfg.reinforcement_amount =
+                (cfg.reinforcement_amount * 0.9).max(opt_cfg.min_reinforcement_amount);
+        }
+
+        // MAX‑TIER BitDrop_v2 compressed optimization packet.
+        self.compressor.as_ref().map(|c| {
+            c.compress(&(
+                "optimize_drift",
+                cfg.decay_rate,
+                cfg.edge_decay_rate,
+                cfg.reinforcement_amount,
+                avg_score,
+                score_span,
+            ))
+        })
+    }
 }
+
 
 

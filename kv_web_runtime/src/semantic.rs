@@ -27,6 +27,17 @@ pub struct SemanticPolygon {
     pub face_index: u8,
 }
 
+/// Optimization config for semantic clustering.
+#[derive(Debug, Clone)]
+pub struct SemanticOptimizationConfig {
+    pub min_similarity_threshold: f32,
+    pub max_similarity_threshold: f32,
+    pub target_cluster_size: usize,
+    pub max_cluster_size: usize,
+    pub min_radius: f32,
+    pub max_radius: f32,
+}
+
 /// Compute cosine similarity between two embeddings.
 fn cosine_similarity(a: &Embedding, b: &Embedding) -> f32 {
     let mut dot = 0.0;
@@ -65,6 +76,14 @@ pub trait KvWebSemantic {
         embeddings: &HashMap<TokenId, Embedding>,
         similarity_threshold: f32,
     ) -> Vec<SemanticPolygon>;
+
+    /// Max-tier optimization loop for semantic clustering.
+    fn optimize_semantic(
+        &mut self,
+        embeddings: &HashMap<TokenId, Embedding>,
+        similarity_threshold: &mut f32,
+        cfg: &SemanticOptimizationConfig,
+    ) -> Option<Vec<u8>>;
 }
 
 impl KvWebSemantic for KvWeb {
@@ -216,6 +235,72 @@ impl KvWebSemantic for KvWeb {
         }
 
         polygons
+    }
+
+    fn optimize_semantic(
+        &mut self,
+        embeddings: &HashMap<TokenId, Embedding>,
+        similarity_threshold: &mut f32,
+        cfg: &SemanticOptimizationConfig,
+    ) -> Option<Vec<u8>> {
+        let node_ids: Vec<WebNodeId> = self.nodes.keys().cloned().collect();
+        if node_ids.is_empty() {
+            return None;
+        }
+
+        // Measure cluster sizes
+        let mut cluster_sizes = Vec::new();
+        for (_, node) in &self.nodes {
+            cluster_sizes.push(node.tokens.len());
+        }
+
+        let avg_cluster_size = if cluster_sizes.is_empty() {
+            0.0
+        } else {
+            cluster_sizes.iter().sum::<usize>() as f32 / cluster_sizes.len() as f32
+        };
+
+        // Adjust similarity threshold based on cluster size
+        if avg_cluster_size < cfg.target_cluster_size as f32 {
+            *similarity_threshold =
+                (*similarity_threshold * 0.95).max(cfg.min_similarity_threshold);
+        } else if avg_cluster_size > cfg.max_cluster_size as f32 {
+            *similarity_threshold =
+                (*similarity_threshold * 1.05).min(cfg.max_similarity_threshold);
+        }
+
+        // Measure polygon radius spread
+        let mut radii = Vec::new();
+        for (_, node) in &self.nodes {
+            if let Some(poly) = &node.polygon {
+                radii.push(poly.radius);
+            }
+        }
+
+        let avg_radius = if radii.is_empty() {
+            0.0
+        } else {
+            radii.iter().sum::<f32>() / radii.len() as f32
+        };
+
+        // Adjust radius indirectly by nudging similarity threshold
+        if avg_radius < cfg.min_radius {
+            *similarity_threshold =
+                (*similarity_threshold * 0.95).max(cfg.min_similarity_threshold);
+        } else if avg_radius > cfg.max_radius {
+            *similarity_threshold =
+                (*similarity_threshold * 1.05).min(cfg.max_similarity_threshold);
+        }
+
+        // Compressed optimization packet
+        self.compressor.as_ref().map(|c| {
+            c.compress(&(
+                "optimize_semantic",
+                avg_cluster_size,
+                avg_radius,
+                *similarity_threshold,
+            ))
+        })
     }
 }
 

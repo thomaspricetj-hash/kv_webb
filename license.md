@@ -1,12 +1,12 @@
-EVALUATION LICENSE AGREEMENT — Version 3.0
+📄 EVALUATION LICENSE AGREEMENT — Version 3.1
 
-Maximum Protection Edition
+Autonomous Cognitive Architecture Edition
 
 © Thomas Price. All Rights Reserved.
 
 
 
-This Evaluation License Agreement (“Agreement”) governs all access to and use of the software, source code, binaries, documentation, designs, architectures, algorithms, cognitive systems, memory structures, compression engines, geometric routing systems, and related materials (“Software”) provided by Thomas Price (“Licensor”).
+This Evaluation License Agreement (“Agreement”) governs all access to and use of the software, source code, binaries, documentation, designs, architectures, algorithms, cognitive systems, memory structures, compression engines, geometric routing systems, optimization schedulers, and related materials (“Software”) provided by Thomas Price (“Licensor”).
 
 
 
@@ -28,6 +28,8 @@ No rights may be inferred.
 
 No rights survive termination.
 
+No rights extend to autonomous optimization behavior.
+
 
 
 2\. PROHIBITED ACTIONS (ABSOLUTE RESTRICTIONS)
@@ -38,7 +40,31 @@ Evaluator SHALL NOT, under any circumstances:
 
 2.1 Copying \& Reproduction
 
-Copy, reproduce, mirror, duplicate, archive, or store the Software, in whole or in part.
+Evaluator may NOT copy, reproduce, mirror, duplicate, archive, store, or snapshot the Software, in whole or in part, including:
+
+
+
+cognitive graph structures
+
+
+
+polygonal regions
+
+
+
+drift packets
+
+
+
+compressed formats
+
+
+
+scheduler state
+
+
+
+optimization profiles
 
 
 
@@ -132,6 +158,14 @@ graph engine
 
 
 
+global optimization scheduler
+
+
+
+autonomous tuning loops
+
+
+
 Compression Systems
 
 BitDrop\_v2 adaptive compression
@@ -192,6 +226,10 @@ compressed KV‑subset routing formats
 
 
 
+compressed scheduler state
+
+
+
 2.3 Reverse Engineering
 
 Evaluator may NOT reverse‑engineer, decompile, disassemble, analyze, inspect, probe, or attempt to derive:
@@ -238,13 +276,49 @@ GPU routing behavior
 
 
 
+scheduler behavior
+
+
+
+autonomous optimization logic
+
+
+
 compressed memory formats
 
 
 
 2.4 Anti‑Circumvention
 
-Evaluator may NOT attempt to bypass, circumvent, replicate, infer, decode, extract, simulate, or approximate any functional, behavioral, architectural, geometric, or algorithmic aspect of the Software.
+Evaluator may NOT attempt to bypass, circumvent, replicate, infer, decode, extract, simulate, or approximate any functional, behavioral, architectural, geometric, or algorithmic aspect of the Software, including:
+
+
+
+polygon routing
+
+
+
+drift physics
+
+
+
+branch stabilization
+
+
+
+dynamic webbing
+
+
+
+semantic clustering
+
+
+
+scheduler decisions
+
+
+
+optimization heuristics
 
 
 
@@ -295,6 +369,10 @@ in any paid or unpaid project
 
 
 in any system that interacts with customers, users, or hardware
+
+
+
+in any system that uses autonomous optimization
 
 
 
@@ -364,6 +442,10 @@ build products using reversible cognitive‑snapshot compression
 
 
 
+build products using autonomous optimization or scheduling
+
+
+
 2.7 Anti‑Functional‑Equivalence
 
 Evaluator may NOT build any system that:
@@ -406,6 +488,14 @@ uses similar GPU routing
 
 
 
+uses similar scheduler behavior
+
+
+
+uses similar autonomous optimization
+
+
+
 Functional duplication is strictly prohibited.
 
 
@@ -416,35 +506,35 @@ Evaluator may NOT:
 
 
 
-study the Software
+study
 
 
 
-isolate behaviors
+isolate
 
 
 
-document behaviors
+document
 
 
 
-create specifications
+diagram
 
 
 
-create diagrams
+summarize
 
 
 
-create architectural summaries
+describe
 
 
 
-create algorithmic descriptions
+analyze
 
 
 
-for the purpose of building a “clean‑room” re‑implementation.
+any behavior of the Software for the purpose of building a “clean‑room” re‑implementation.
 
 
 
@@ -494,6 +584,10 @@ uses the Software’s cognitive snapshots
 
 
 
+uses the Software’s scheduler state
+
+
+
 Format compatibility is strictly prohibited.
 
 
@@ -529,6 +623,10 @@ use the Software’s compression engine to train or optimize AI models
 
 
 use compressed outputs to infer internal cognitive behavior
+
+
+
+use scheduler decisions to infer optimization heuristics
 
 
 
@@ -614,7 +712,7 @@ or otherwise make the Software available to any third party
 
 2.13 Intellectual Extraction
 
-Evaluator may NOT use any ideas, structures, patterns, designs, geometric concepts, or cognitive mechanisms contained in the Software outside of the Evaluation Purpose.
+Evaluator may NOT use any ideas, structures, patterns, designs, geometric concepts, cognitive mechanisms, or optimization heuristics contained in the Software outside of the Evaluation Purpose.
 
 
 
@@ -666,6 +764,14 @@ GPU compression behavior
 
 
 
+scheduler behavior
+
+
+
+autonomous optimization logic
+
+
+
 compressed memory formats
 
 
@@ -692,7 +798,7 @@ The Software contains trade secrets.
 
 
 
-The Software’s architecture, design, geometric routing, memory systems, and compression systems are protected intellectual property.
+The Software’s architecture, design, geometric routing, memory systems, compression systems, and optimization scheduler are protected intellectual property.
 
 
 
@@ -700,7 +806,7 @@ No ownership or rights are transferred.
 
 
 
-Evaluator agrees that all internal behaviors, algorithms, geometric routing rules, compression rules, drift physics, and cognitive patterns constitute trade secrets under applicable law.
+Evaluator agrees that all internal behaviors, algorithms, geometric routing rules, compression rules, drift physics, cognitive patterns, and scheduler heuristics constitute trade secrets under applicable law.
 
 
 
@@ -813,6 +919,14 @@ adaptive profile reuse
 
 
 GPU compression reuse
+
+
+
+scheduler reuse
+
+
+
+autonomous optimization reuse
 
 
 
