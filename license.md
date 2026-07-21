@@ -1,12 +1,12 @@
-📄 EVALUATION LICENSE AGREEMENT — Version 3.1
+📄 EVALUATION LICENSE AGREEMENT — Version 3.1.1
 
-Autonomous Cognitive Architecture Edition
+Autonomous Cognitive Architecture + GPU Load‑Balancing Edition
 
 © Thomas Price. All Rights Reserved.
 
 
 
-This Evaluation License Agreement (“Agreement”) governs all access to and use of the software, source code, binaries, documentation, designs, architectures, algorithms, cognitive systems, memory structures, compression engines, geometric routing systems, optimization schedulers, and related materials (“Software”) provided by Thomas Price (“Licensor”).
+This Evaluation License Agreement (“Agreement”) governs all access to and use of the software, source code, binaries, documentation, designs, architectures, algorithms, cognitive systems, memory structures, compression engines, geometric routing systems, optimization schedulers, GPU load‑balancing systems, and related materials (“Software”) provided by Thomas Price (“Licensor”).
 
 
 
@@ -28,7 +28,7 @@ No rights may be inferred.
 
 No rights survive termination.
 
-No rights extend to autonomous optimization behavior.
+No rights extend to autonomous optimization behavior or GPU load‑balancing behavior.
 
 
 
@@ -65,6 +65,18 @@ scheduler state
 
 
 optimization profiles
+
+
+
+GPU load‑balancing state
+
+
+
+multi‑stream routing configuration
+
+
+
+SM‑aware region partitioning metadata
 
 
 
@@ -196,7 +208,57 @@ GPU BD3D encoder/decoder
 
 
 
+GPU Systems (NEW)
+
+Evaluator may NOT re‑implement, emulate, approximate, simulate, or derive:
+
+
+
+GPU load‑balancing logic
+
+
+
+SM‑aware region partitioning
+
+
+
+warp‑aware concurrency
+
+
+
+multi‑stream CUDA routing
+
+
+
+dynamic GPU batch scaling
+
+
+
+GPU crossover heuristics
+
+
+
+GPU optimization scheduler behavior
+
+
+
+GPU mask‑building algorithms
+
+
+
+GPU routing behavior
+
+
+
+GPU compression behavior
+
+
+
 Compressed Formats
+
+Evaluator may NOT replicate:
+
+
 
 compressed cognitive‑snapshot formats
 
@@ -227,6 +289,10 @@ compressed KV‑subset routing formats
 
 
 compressed scheduler state
+
+
+
+compressed GPU routing packets
 
 
 
@@ -288,6 +354,14 @@ compressed memory formats
 
 
 
+GPU load‑balancing heuristics
+
+
+
+multi‑stream execution patterns
+
+
+
 2.4 Anti‑Circumvention
 
 Evaluator may NOT attempt to bypass, circumvent, replicate, infer, decode, extract, simulate, or approximate any functional, behavioral, architectural, geometric, or algorithmic aspect of the Software, including:
@@ -319,6 +393,18 @@ scheduler decisions
 
 
 optimization heuristics
+
+
+
+GPU load‑balancing decisions
+
+
+
+SM‑aware routing behavior
+
+
+
+multi‑stream CUDA execution patterns
 
 
 
@@ -373,6 +459,10 @@ in any system that interacts with customers, users, or hardware
 
 
 in any system that uses autonomous optimization
+
+
+
+in any system that uses GPU load‑balancing or multi‑stream routing
 
 
 
@@ -446,6 +536,10 @@ build products using autonomous optimization or scheduling
 
 
 
+build products using GPU load‑balancing, SM‑aware routing, or multi‑stream CUDA execution
+
+
+
 2.7 Anti‑Functional‑Equivalence
 
 Evaluator may NOT build any system that:
@@ -493,6 +587,10 @@ uses similar scheduler behavior
 
 
 uses similar autonomous optimization
+
+
+
+uses similar GPU load‑balancing or multi‑stream routing
 
 
 
@@ -588,6 +686,10 @@ uses the Software’s scheduler state
 
 
 
+uses the Software’s GPU routing packets or load‑balancing metadata
+
+
+
 Format compatibility is strictly prohibited.
 
 
@@ -627,6 +729,10 @@ use compressed outputs to infer internal cognitive behavior
 
 
 use scheduler decisions to infer optimization heuristics
+
+
+
+use GPU load‑balancing behavior to infer routing heuristics
 
 
 
@@ -706,13 +812,13 @@ upload
 
 
 
-or otherwise make the Software available to any third party
+or otherwise make the Software available to any third party.
 
 
 
 2.13 Intellectual Extraction
 
-Evaluator may NOT use any ideas, structures, patterns, designs, geometric concepts, cognitive mechanisms, or optimization heuristics contained in the Software outside of the Evaluation Purpose.
+Evaluator may NOT use any ideas, structures, patterns, designs, geometric concepts, cognitive mechanisms, optimization heuristics, or GPU routing heuristics contained in the Software outside of the Evaluation Purpose.
 
 
 
@@ -776,6 +882,14 @@ compressed memory formats
 
 
 
+GPU load‑balancing logic
+
+
+
+multi‑stream routing logic
+
+
+
 Any prohibited action immediately terminates this Agreement.
 
 
@@ -798,7 +912,7 @@ The Software contains trade secrets.
 
 
 
-The Software’s architecture, design, geometric routing, memory systems, compression systems, and optimization scheduler are protected intellectual property.
+The Software’s architecture, design, geometric routing, memory systems, compression systems, GPU systems, and optimization scheduler are protected intellectual property.
 
 
 
@@ -806,7 +920,7 @@ No ownership or rights are transferred.
 
 
 
-Evaluator agrees that all internal behaviors, algorithms, geometric routing rules, compression rules, drift physics, cognitive patterns, and scheduler heuristics constitute trade secrets under applicable law.
+Evaluator agrees that all internal behaviors, algorithms, geometric routing rules, compression rules, drift physics, cognitive patterns, scheduler heuristics, and GPU load‑balancing heuristics constitute trade secrets under applicable law.
 
 
 
@@ -931,6 +1045,14 @@ autonomous optimization reuse
 
 
 compressed memory format reuse
+
+
+
+GPU load‑balancing reuse
+
+
+
+multi‑stream routing reuse
 
 
 
