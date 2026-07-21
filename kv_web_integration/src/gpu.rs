@@ -57,7 +57,7 @@ impl Default for GpuOptimizationState {
         Self {
             region_batch: 256,
             gpu_threshold: 512,
-            block_size: 1,
+            block_size: 64,
         }
     }
 }
@@ -94,7 +94,7 @@ pub fn read_gpu_load(device: &Device) -> GpuLoad {
     }
 }
 
-/// Partition region tokens into balanced chunks based on GPU load.
+/// Partition region tokens into balanced chunks based on GPU load + hybrid priority.
 pub fn partition_region_for_gpu(
     region: &[u32],
     load: &GpuLoad,
@@ -102,13 +102,22 @@ pub fn partition_region_for_gpu(
 ) -> Vec<Vec<u32>> {
     let base_batch = state.region_batch;
 
-    let adjusted_batch = if load.current_load > 0.75 {
-        base_batch / 4
-    } else if load.current_load > 0.50 {
-        base_batch / 2
-    } else {
-        base_batch
-    };
+    // Hybrid priority: combine load + region size heuristics
+    let mut adjusted_batch = base_batch;
+
+    if load.current_load > 0.80 {
+        adjusted_batch = base_batch / 4;
+    } else if load.current_load > 0.60 {
+        adjusted_batch = base_batch / 2;
+    }
+
+    if region.len() > 8192 {
+        adjusted_batch = adjusted_batch * 2;
+    } else if region.len() < 1024 {
+        adjusted_batch = adjusted_batch / 2;
+    }
+
+    adjusted_batch = adjusted_batch.max(32);
 
     let mut chunks = Vec::new();
     let mut i = 0;
@@ -122,46 +131,110 @@ pub fn partition_region_for_gpu(
     chunks
 }
 
-/// Multi‑stream GPU execution with load balancing.
+/// Multi‑stream GPU execution with hybrid routing (roundabout exits).
 pub fn build_attention_mask_gpu_balanced(
     region_chunks: &[Vec<u32>],
     kv_len: usize,
     module: &Module,
+    block_size: u32,
+    load: &GpuLoad,
 ) -> Vec<f32> {
-    let func = module.get_function("build_mask").unwrap();
+    let func = match module.get_function("build_mask") {
+        Ok(f) => f,
+        Err(_) => return vec![0.0f32; kv_len],
+    };
 
-    let mut streams = Vec::new();
-    for _ in region_chunks {
-        streams.push(Stream::new(StreamFlags::NON_BLOCKING, None).unwrap());
-    }
+    // Adaptive stream count based on SMs (daemon-like behavior)
+    let max_streams = if load.sm_count >= 80 { 16 } else { 8 };
+    let stream_count = region_chunks.len().min(max_streams);
 
-    let mask_buf = DeviceBuffer::<f32>::zeroed(kv_len).unwrap();
-
-    for (i, chunk) in region_chunks.iter().enumerate() {
-        let region_buf = DeviceBuffer::from_slice(chunk).unwrap();
-        let region_len = chunk.len() as u32;
-
-        let stream_ref = &streams[i];
-
-        unsafe {
-            launch!(
-                func<<<region_len, 1, 0, stream_ref>>>(
-                    region_buf.as_device_ptr(),
-                    region_len,
-                    mask_buf.as_device_ptr(),
-                    kv_len as u32
-                )
-            )
-            .unwrap();
+    let mut streams = Vec::with_capacity(stream_count);
+    for _ in 0..stream_count {
+        match Stream::new(StreamFlags::NON_BLOCKING, None) {
+            Ok(s) => streams.push(s),
+            Err(_) => {
+                streams.clear();
+                break;
+            }
         }
     }
 
-    for s in streams {
-        s.synchronize().unwrap();
+    let mask_buf = match DeviceBuffer::<f32>::zeroed(kv_len) {
+        Ok(buf) => buf,
+        Err(_) => return vec![0.0f32; kv_len],
+    };
+
+    if streams.is_empty() {
+        // Single‑stream fallback
+        let stream = Stream::new(StreamFlags::NON_BLOCKING, None).unwrap();
+        for chunk in region_chunks {
+            let region_buf = match DeviceBuffer::from_slice(chunk) {
+                Ok(buf) => buf,
+                Err(_) => continue,
+            };
+            let region_len = chunk.len() as u32;
+
+            let threads_per_block = block_size.max(32);
+            let blocks = ((region_len + threads_per_block - 1) / threads_per_block).max(1);
+
+            unsafe {
+                launch!(
+                    func<<<blocks, threads_per_block, 0, stream>>>(
+                        region_buf.as_device_ptr(),
+                        region_len,
+                        mask_buf.as_device_ptr(),
+                        kv_len as u32
+                    )
+                )
+                .unwrap();
+            }
+        }
+        stream.synchronize().unwrap();
+    } else {
+        // Roundabout routing: choose exits (streams) based on semantic vs load bias.
+        for (i, chunk) in region_chunks.iter().enumerate() {
+            let region_buf = match DeviceBuffer::from_slice(chunk) {
+                Ok(buf) => buf,
+                Err(_) => continue,
+            };
+            let region_len = chunk.len() as u32;
+
+            // small chunks → semantic exits (lower index)
+            // large chunks → performance exits (upper index)
+            let semantic_bias = region_len < 1024;
+            let stream_index = if semantic_bias {
+                i % (streams.len() / 2).max(1)
+            } else {
+                (i + streams.len() / 2) % streams.len()
+            };
+
+            let stream = &streams[stream_index];
+
+            let threads_per_block = block_size.max(32);
+            let blocks = ((region_len + threads_per_block - 1) / threads_per_block).max(1);
+
+            unsafe {
+                launch!(
+                    func<<<blocks, threads_per_block, 0, stream>>>(
+                        region_buf.as_device_ptr(),
+                        region_len,
+                        mask_buf.as_device_ptr(),
+                        kv_len as u32
+                    )
+                )
+                .unwrap();
+            }
+        }
+
+        for s in streams {
+            s.synchronize().unwrap();
+        }
     }
 
     let mut mask = vec![0.0f32; kv_len];
-    mask_buf.copy_to(&mut mask).unwrap();
+    if let Err(_) = mask_buf.copy_to(&mut mask) {
+        return vec![0.0f32; kv_len];
+    }
 
     mask
 }
@@ -192,19 +265,31 @@ pub fn build_attention_mask_gpu(
 
     let gpu_ctx = gpu.unwrap();
 
-    // Local max‑tier optimization state + config
+    // Local optimization state + config
     let mut state = GpuOptimizationState::default();
     let cfg = GpuOptimizationConfig {
         min_region_batch: 64,
-        max_region_batch: 4096,
-        min_gpu_threshold: 128,
-        max_gpu_threshold: 16384,
-        min_block_size: 1,
+        max_region_batch: 8192,
+        min_gpu_threshold: 256,
+        max_gpu_threshold: 32768,
+        min_block_size: 32,
         max_block_size: 1024,
     };
 
-    // Runtime-only tuning
     optimize_gpu(web, root, depth, kv_len, &mut state, &cfg);
+
+    let region_size = region.len();
+
+    // Hybrid GPU threshold: small regions stay on CPU
+    if region_size < state.gpu_threshold {
+        let mut mask = vec![0.0; kv_len];
+        for t in region {
+            if t.0 < kv_len {
+                mask[t.0] = 1.0;
+            }
+        }
+        return mask;
+    }
 
     let region_vec: Vec<u32> = region.iter().map(|t| t.0 as u32).collect();
 
@@ -221,6 +306,8 @@ pub fn build_attention_mask_gpu(
         .param .u32 kv_len
     )
     {
+        .reg .pred p_exit;
+        .reg .pred p_skip;
         .reg .u32 tid;
         .reg .u32 idx;
         .reg .u64 rptr;
@@ -250,17 +337,27 @@ pub fn build_attention_mask_gpu(
     }
     "#;
 
-    let module = Module::from_ptx(ptx, &[]).unwrap();
+    let module = match Module::from_ptx(ptx, &[]) {
+        Ok(m) => m,
+        Err(_) => {
+            let mut mask = vec![0.0; kv_len];
+            for t in region {
+                if t.0 < kv_len {
+                    mask[t.0] = 1.0;
+                }
+            }
+            return mask;
+        }
+    };
 
-    // GPU load balancing
     let load = read_gpu_load(&gpu_ctx.device);
     let region_chunks = partition_region_for_gpu(&region_vec, &load, &state);
 
-    build_attention_mask_gpu_balanced(&region_chunks, kv_len, &module)
+    build_attention_mask_gpu_balanced(&region_chunks, kv_len, &module, state.block_size, &load)
 }
 
 // ============================================================================
-// ⭐ MAX‑TIER GPU OPTIMIZATION LOOP (runtime-only tuning)
+// MAX‑TIER GPU OPTIMIZATION LOOP (runtime-only tuning)
 // ============================================================================
 
 /// Max-tier optimization loop for GPU mask building.
@@ -276,7 +373,7 @@ pub fn optimize_gpu(
     let region = web.tokens_in_region(root, depth);
     let region_size = region.len();
 
-    // 1) GPU threshold tuning
+    // 1) GPU threshold tuning (hybrid)
     if region_size < cfg.min_gpu_threshold {
         state.gpu_threshold =
             ((state.gpu_threshold as f32 * 0.9) as usize).max(cfg.min_gpu_threshold);
@@ -293,11 +390,12 @@ pub fn optimize_gpu(
     }
 
     // 3) Block size tuning
-    if region_size > 1024 {
+    if region_size > 4096 {
         state.block_size = (state.block_size * 2).min(cfg.max_block_size);
-    } else {
+    } else if region_size < 512 {
         state.block_size = (state.block_size / 2).max(cfg.min_block_size);
     }
 
     // No compression here — GPU tuning is runtime-only.
 }
+
