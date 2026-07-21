@@ -1,10 +1,11 @@
-📄 KV‑Webb Runtime 3.2
+📄 KV‑Webb Runtime 3.3  
 A Fully Autonomous, Polygonal, Diverging‑Semantic Memory Engine for Transformer Models
-(Updated with Tier‑6 Hybrid PKM + Roundabout Routing + Adaptive GPU Daemons)
-KV‑Webb is a graph‑based cognitive memory system designed to augment or replace traditional KV‑cache behavior.
-Instead of storing raw attention vectors, KV‑Webb builds a living, adaptive, geometric, multi‑branch cognitive graph of semantic nodes, edges, drift physics, pruning, reinforcement, dynamic webbing, and now — a GPU‑resident autonomous routing engine powered by Hybrid PKM and roundabout routing.
+(Updated with Tier‑6 Hybrid PKM + Roundabout Routing + Adaptive GPU Daemons + Multi‑Layer Heatmaps + Zoning + Auto‑Optimizer)
 
-With the polygon‑KV + diverging‑memory + BitDrop_v2 + global‑scheduler + Tier‑6 GPU routing upgrade, KV‑Webb now supports:
+KV‑Webb is a graph‑based cognitive memory system designed to augment or replace traditional KV‑cache behavior.
+Instead of storing raw attention vectors, KV‑Webb builds a living, adaptive, geometric, multi‑branch cognitive graph of semantic nodes, edges, drift physics, pruning, reinforcement, dynamic webbing, and a GPU‑resident autonomous routing engine powered by Hybrid PKM and roundabout routing.
+
+With the polygon‑KV + diverging‑memory + BitDrop_v2 + global‑scheduler + Tier‑6 GPU routing + Tier‑7 multi‑layer heatmaps + zoning + auto‑optimizer upgrade, KV‑Webb now supports:
 
 multi‑interpretation semantic nodes
 
@@ -17,6 +18,12 @@ stability‑weighted branch selection
 reinforcement‑driven semantic stabilization
 
 polygon‑aware pruning + routing
+
+multi‑layer semantic heatmaps (multi‑resolution scoring)
+
+zoning (semantic region segmentation per layer)
+
+auto‑optimizing heatmap smoothing + routing parameters
 
 BitDrop_v2 max‑tier compression for nodes, edges, drift packets, heatmaps, polygons, and graph ops
 
@@ -34,9 +41,49 @@ autonomous global optimization across all subsystems
 
 This transforms KV‑cache from a stateless buffer into a self‑optimizing synthetic cognitive substrate.
 
-⭐ New in KV‑Webb Runtime 3.2 (Tier‑6 Upgrade)
-Tier‑6 Hybrid PKM GPU Routing (NEW)
-KV‑Webb now includes a GPU‑resident routing engine that uses:
+⭐ New in KV‑Webb Runtime 3.3 (Tier‑7 Upgrade)
+
+Tier‑7 Multi‑Layer Heatmaps + Zoning + Auto‑Optimizer (NEW)
+KV‑Webb now includes a multi‑layer semantic heatmap engine with:
+
+polygon‑weighted base heatmaps (face bonus, centroid penalty, radius‑aware smoothing)
+
+multiple layers of progressively smoothed heatmaps
+
+per‑layer scratch pads for intermediate routing and compression signals
+
+per‑layer index maps (sorted token indices by heat)
+
+per‑layer zoning (zone IDs, ranges, stats, centroid indices)
+
+zone complexity scoring for routing and compression
+
+full performance metrics (build time, per‑layer smoothing, indexing, zoning)
+
+An auto‑optimizer uses:
+
+top‑layer variance
+
+zone complexity
+
+zone statistics
+
+per‑layer performance metrics
+
+to tune:
+
+smoothing strength
+
+effective routing depth
+
+semantic vs geometric weighting
+
+compression‑aware region selection
+
+This turns the heatmap subsystem into a self‑tuning semantic geometry engine that directly drives BitDrop_v2 compression and Hybrid PKM GPU routing.
+
+Tier‑6 Hybrid PKM GPU Routing (Existing, Refined)
+KV‑Webb includes a GPU‑resident routing engine that uses:
 
 GPU work queues for bulk dispatch
 
@@ -51,6 +98,8 @@ roundabout routing logic for multi‑exit flow
 drift‑aware re‑circulation
 
 polygon‑weighted exit selection
+
+heatmap + zoning‑driven region masks
 
 This turns the GPU into an autonomous routing brain, not just a mask builder.
 
@@ -69,7 +118,9 @@ polygon geometry parameters
 
 BFS depth + PageRank damping
 
-heatmap smoothing
+heatmap smoothing strength + layer count
+
+zoning thresholds + zone complexity weighting
 
 transformer mask density + routing depth
 
@@ -84,9 +135,10 @@ roundabout routing thresholds
 semantic vs load priority weighting
 
 KV‑Webb is no longer just adaptive —
-it is fully autonomous and GPU‑coordinated.
+it is fully autonomous, GPU‑coordinated, and heatmap‑driven.
 
 🧠 Semantic Memory (Updated)
+
 Token clustering based on cosine similarity
 
 Centroid‑based node representation
@@ -105,7 +157,10 @@ Scheduler‑tuned semantic thresholds
 
 GPU‑accelerated region routing
 
+heatmap‑weighted semantic relevance per token and region
+
 🕸 Dynamic Webbing (Updated)
+
 Automatic edge strengthening when nodes co‑occur
 
 Edge weakening and decay
@@ -124,7 +179,10 @@ Scheduler‑tuned strengthen/decay rates
 
 GPU‑aware webbing density tuning
 
+heatmap + zoning‑aware edge reinforcement and pruning
+
 ⏳ Drift Physics (Updated)
+
 Linear or exponential score decay
 
 Time‑based relevance drift
@@ -143,7 +201,10 @@ Scheduler‑tuned decay + reinforcement
 
 roundabout re‑circulation for drifted branches
 
+heatmap‑modulated drift (hot zones resist decay, cold zones accelerate pruning)
+
 ✂️ Pruning System (Updated)
+
 Score decay and threshold‑based node removal
 
 Edge pruning
@@ -160,7 +221,10 @@ Scheduler‑tuned pruning thresholds
 
 GPU‑accelerated pruning mask routing
 
+zone‑aware pruning (zones with low complexity and low heat are pruned first)
+
 🔍 Graph Operations (Updated)
+
 BFS region expansion
 
 Polygon‑weighted BFS
@@ -179,22 +243,36 @@ Scheduler‑tuned BFS depth + damping
 
 GPU‑balanced BFS routing
 
-🔥 Heatmaps (Updated)
+heatmap + zoning‑guided BFS and relevance scoring
+
+🔥 Heatmaps (Tier‑7 Upgrade)
+
 Token‑level relevance heatmaps
 
 Drift‑adjusted heatmaps for semantic stability
 
 Polygon‑weighted heatmaps (face bonus, centroid penalty, radius smoothing)
 
+multi‑layer heatmaps (raw + progressively smoothed layers)
+
+per‑layer scratch pads for routing/compression intermediates
+
+per‑layer index maps (sorted token indices by heat)
+
+per‑layer zoning (zone IDs, ranges, stats, centroid indices)
+
 Normalization and smoothing utilities
 
-Compressed heatmaps (raw / normalized / smoothed)
+Compressed heatmaps (raw / normalized / smoothed / zoned)
 
-Scheduler‑tuned smoothing strength
+Scheduler‑tuned smoothing strength + layer count
 
 GPU‑accelerated heatmap scoring
 
-🔗 Transformer Integration (Tier‑6 Upgrade)
+auto‑optimizer for heatmap parameters based on variance + zone complexity
+
+🔗 Transformer Integration (Tier‑6 + Tier‑7 Upgrade)
+
 Transformer integration now includes:
 
 region‑based attention masks
@@ -225,6 +303,8 @@ dynamic batch scaling
 
 scheduler‑tuned GPU parameters
 
+heatmap + zoning‑driven mask construction and KV subset selection
+
 This upgrade improves:
 
 mask‑building speed 2×–15×
@@ -237,8 +317,11 @@ routing stability 40–70%
 
 drift‑resilience 2×
 
+compression efficiency via heat‑driven BitDrop_v2 collapse
+
 🧩 Architecture Overview (Updated)
-Code
+
+text
 kv_web_core/
     KvWeb
     WebNode
@@ -253,16 +336,17 @@ kv_web_runtime/
     dynamic_web.rs
     semantic.rs
     graph_ops.rs
-    heatmap.rs
-    scheduler.rs   ← Tier‑5 global optimizer
+    heatmap.rs    ← Tier‑7 multi‑layer heatmaps + zoning + auto‑optimizer
+    scheduler.rs  ← Tier‑5 global optimizer
 
 kv_web_integration/
     kv_subset.rs
     attention_mask.rs
-    gpu.rs          ← Tier‑6 Hybrid PKM + Roundabout Routing
+    gpu.rs        ← Tier‑6 Hybrid PKM + Roundabout Routing + heatmap/zoning‑driven routing
 Each subsystem is independent but coordinated by the global scheduler, forming a unified geometric cognitive memory engine.
 
 🎯 Goals (Updated)
+
 KV‑Webb aims to provide:
 
 Long‑term memory
@@ -291,11 +375,16 @@ roundabout routing logic
 
 autonomous GPU routing brain
 
+multi‑layer semantic heatmaps + zoning
+
+auto‑optimizing routing and compression parameters
+
 Autonomous global optimization
 
-This project explores how transformer models behave when given a persistent, evolving, geometric memory system instead of a stateless KV‑cache.
+This project explores how transformer models behave when given a persistent, evolving, geometric, heat‑driven memory system instead of a stateless KV‑cache.
 
 🚀 Why KV‑Webb Matters (Updated)
+
 Traditional KV‑cache:
 
 stores raw vectors
@@ -312,7 +401,7 @@ cannot route based on geometry
 
 cannot self‑optimize
 
-KV‑Webb 3.2:
+KV‑Webb 3.3:
 
 stores semantic nodes
 
@@ -341,6 +430,10 @@ self‑optimizes across all subsystems
 uses roundabout routing for stability
 
 uses adaptive GPU daemons for throughput
+
+uses multi‑layer heatmaps + zoning for fine‑grained semantic routing
+
+auto‑tunes smoothing, routing depth, and compression behavior
 
 KV‑Webb is not an optimization —
 it is a cognitive architecture.
