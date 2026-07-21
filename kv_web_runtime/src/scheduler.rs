@@ -16,6 +16,7 @@ use kv_web_core::{
     KvWebOptimizationConfig,
     KvWebOptimizationState,
     optimize_kv_web,
+    WebNodeId,
 };
 
 use kv_web_integration::{
@@ -38,10 +39,10 @@ use kv_web_integration::transformer::{
     optimize_transformer_kv,
 };
 
-use kv_web_core::WebNodeId;
+use serde::{Serialize, Deserialize};
 
 /// Global scheduler configuration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulerConfig {
     pub kv_web_cfg: KvWebOptimizationConfig,
     pub integration_cfg: IntegrationOptimizationConfig,
@@ -51,11 +52,11 @@ pub struct SchedulerConfig {
     /// Root node for region‑based optimizations.
     pub default_root: WebNodeId,
     /// Default depth for region queries when optimizing.
-    pub default_depth: usize;
+    pub default_depth: usize,
 }
 
 /// Global scheduler state.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulerState {
     pub kv_web_state: KvWebOptimizationState,
     pub integration_state: IntegrationOptimizationState,
@@ -76,6 +77,7 @@ impl Default for SchedulerState {
 
 /// Global optimization scheduler.
 /// Owns no data; just coordinates optimization across subsystems.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KvWebScheduler {
     pub cfg: SchedulerConfig,
     pub state: SchedulerState,
@@ -165,3 +167,4 @@ impl KvWebScheduler {
         self.tick_gpu(web, kv_len);
     }
 }
+

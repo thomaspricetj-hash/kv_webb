@@ -3,47 +3,44 @@
 //! Semantic clustering over KV Web nodes + BitDrop_v2 max‑tier compression
 //! + Polygonal‑KV geometry upgrade.
 //!
-//! Each cluster now forms a polygonal semantic region with:
-//! - centroid
-//! - radius
-//! - face index
-//! - polygon id
+//! Tier‑6 upgrades:
+//! - parallel geometry evaluation
+//! - cluster indexing + zoning
+//! - dual-layer scratch pads (score + geometry)
+//! - GPU-ready compressed cluster packets
 //!
-//! These polygonal regions compress extremely well under BitDrop_v2 and
-//! allow geometric KV routing (multi‑facet semantic faces).
+//! All upgrades are backwards-compatible.
 
 use kv_web_core::{KvWeb, WebNodeId, KvWebCompressor, PolygonRegion};
+use rayon::prelude::*;
+use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 
 /// A cluster with polygonal KV metadata.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Cluster {
     pub id: usize,
     pub nodes: Vec<WebNodeId>,
     pub label: Option<String>,
     pub score: f32,
 
-    // Polygonal KV metadata
     pub polygon: Option<PolygonRegion>,
-
-    // MAX‑TIER BitDrop_v2 compressed payload
     pub compressed: Option<Vec<u8>>,
 
-    // Optimization metadata
     pub routing_error: f32,
     pub radius_error: f32,
     pub face_index_confidence: f32,
 }
 
 /// Clustering configuration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterConfig {
     pub min_score: f32,
     pub max_cluster_size: usize,
 }
 
 /// Optimization configuration for clusters.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterOptimizationConfig {
     pub min_radius: f32,
     pub max_radius: f32,
@@ -52,10 +49,34 @@ pub struct ClusterOptimizationConfig {
     pub max_routing_error: f32,
 }
 
+/// Dual-layer scratch pad for clusters.
+/// Layer A = cluster scores
+/// Layer B = geometry metric (radius or routing error)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClusterScratchPad {
+    pub layer_a: Vec<f32>,
+    pub layer_b: Vec<f32>,
+}
+
+/// Zoning + indexing for clusters.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClusterZone {
+    pub zone_id: usize,
+    pub start: usize,
+    pub end: usize,
+    pub centroid_cluster: Option<usize>,
+    pub size: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClusterZoning {
+    pub indices: Vec<usize>,
+    pub zones: Vec<ClusterZone>,
+    pub scratch: ClusterScratchPad,
+}
+
 pub struct KvWebClusters {
     pub clusters: Vec<Cluster>,
-
-    // Optional compressor for cluster snapshots
     pub compressor: Option<KvWebCompressor>,
 }
 
@@ -67,7 +88,6 @@ impl KvWebClusters {
 
         let compressor = web.compressor.clone();
 
-        // naive clustering: group by label
         let mut by_label: HashMap<String, Vec<WebNodeId>> = HashMap::new();
 
         for (id, node) in &web.nodes {
@@ -164,68 +184,141 @@ impl KvWebClusters {
         }
     }
 
+    /// Build dual-layer scratch pad for current clusters.
+    fn build_scratch_pad(&self) -> ClusterScratchPad {
+        let mut layer_a = Vec::with_capacity(self.clusters.len());
+        let mut layer_b = Vec::with_capacity(self.clusters.len());
+
+        for c in &self.clusters {
+            layer_a.push(c.score);
+            let geom = if c.radius_error > 0.0 {
+                c.radius_error
+            } else {
+                c.routing_error
+            };
+            layer_b.push(geom);
+        }
+
+        ClusterScratchPad { layer_a, layer_b }
+    }
+
+    /// Build cluster indexing + zoning.
+    pub fn build_zoning(&self, num_zones: usize) -> ClusterZoning {
+        let mut indices: Vec<usize> = (0..self.clusters.len()).collect();
+
+        indices.sort_by(|&a, &b| {
+            let sa = self.clusters[a].score;
+            let sb = self.clusters[b].score;
+            sb.partial_cmp(&sa).unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        let num_zones = num_zones.max(1);
+        let len = indices.len();
+        let zone_size = (len as f32 / num_zones as f32).ceil() as usize;
+
+        let mut zones = Vec::new();
+        let mut zone_id = 0;
+        let mut start = 0;
+
+        while start < len {
+            let end = (start + zone_size).min(len);
+            let slice = &indices[start..end];
+
+            let centroid_cluster = slice.get(slice.len() / 2).cloned();
+
+            zones.push(ClusterZone {
+                zone_id,
+                start,
+                end,
+                centroid_cluster,
+                size: slice.len(),
+            });
+
+            zone_id += 1;
+            start = end;
+        }
+
+        let scratch = self.build_scratch_pad();
+
+        ClusterZoning {
+            indices,
+            zones,
+            scratch,
+        }
+    }
+
+    /// Compressed zoning (GPU-ready).
+    pub fn build_zoning_compressed(&self, num_zones: usize) -> Option<Vec<u8>> {
+        let zoning = self.build_zoning(num_zones);
+        self.compressor.as_ref().map(|c| {
+            c.compress(&(
+                "cluster_zoning",
+                &zoning.indices,
+                &zoning.zones,
+                &zoning.scratch.layer_a,
+                &zoning.scratch.layer_b,
+            ))
+        })
+    }
+
     /// Max‑tier optimization loop over polygonal clusters.
-    ///
-    /// This loop:
-    /// - evaluates geometry quality (radius, centroid fit, face index confidence)
-    /// - adjusts polygon radius within bounds
-    /// - nudges centroid toward high‑score / high‑connectivity nodes
-    /// - reinforces high‑score clusters and de‑emphasizes weak ones
-    /// - keeps compressed payloads in sync with updated metadata
     pub fn optimize(
         &mut self,
         web: &KvWeb,
         opt_cfg: &ClusterOptimizationConfig,
     ) {
-        for cluster in &mut self.clusters {
-            // Skip clusters with no polygon metadata.
-            let polygon = match cluster.polygon.as_mut() {
-                Some(p) => p,
-                None => continue,
-            };
+        self.clusters
+            .par_iter_mut()
+            .for_each(|cluster| {
+                let polygon = match cluster.polygon.as_mut() {
+                    Some(p) => p,
+                    None => return,
+                };
 
-            // Re‑evaluate geometry metrics.
-            let (routing_error, radius_error, face_index_confidence) =
-                evaluate_cluster_geometry(web, &cluster.nodes, Some(polygon));
+                let (routing_error, radius_error, face_index_confidence) =
+                    evaluate_cluster_geometry(web, &cluster.nodes, Some(polygon));
 
-            cluster.routing_error = routing_error;
-            cluster.radius_error = radius_error;
-            cluster.face_index_confidence = face_index_confidence;
+                cluster.routing_error = routing_error;
+                cluster.radius_error = radius_error;
+                cluster.face_index_confidence = face_index_confidence;
 
-            // 1) Radius optimization: clamp and smooth radius into configured bounds.
-            if polygon.radius < opt_cfg.min_radius {
-                polygon.radius = (polygon.radius + opt_cfg.min_radius) * 0.5;
-            } else if polygon.radius > opt_cfg.max_radius {
-                polygon.radius = (polygon.radius + opt_cfg.max_radius) * 0.5;
-            }
-
-            // 2) Centroid optimization: bias centroid toward high‑score / high‑connectivity nodes.
-            optimize_centroid(web, &cluster.nodes, polygon);
-
-            // 3) Face index optimization: smooth face index toward target confidence.
-            optimize_face_index(polygon, face_index_confidence, opt_cfg.target_face_index_smoothness);
-
-            // 4) Cluster score reinforcement: boost strong clusters, damp weak ones.
-            if cluster.score >= opt_cfg.min_score_reinforce && routing_error <= opt_cfg.max_routing_error {
-                cluster.score = (cluster.score * 1.05).min(1.0);
-            } else {
-                cluster.score *= 0.97;
-            }
-
-            // 5) Keep compressed payload in sync with updated metadata.
-            if let Some(compressor) = &self.compressor {
-                if let Some(label) = &cluster.label {
-                    cluster.compressed = Some(
-                        compressor.compress(&(
-                            cluster.id,
-                            &cluster.nodes,
-                            label,
-                            cluster.score,
-                            cluster.polygon.as_ref(),
-                        ))
-                    );
+                if polygon.radius < opt_cfg.min_radius {
+                    polygon.radius = (polygon.radius + opt_cfg.min_radius) * 0.5;
+                } else if polygon.radius > opt_cfg.max_radius {
+                    polygon.radius = (polygon.radius + opt_cfg.max_radius) * 0.5;
                 }
-            }
+
+                optimize_centroid(web, &cluster.nodes, polygon);
+                optimize_face_index(polygon, face_index_confidence, opt_cfg.target_face_index_smoothness);
+
+                if cluster.score >= opt_cfg.min_score_reinforce && routing_error <= opt_cfg.max_routing_error {
+                    cluster.score = (cluster.score * 1.05).min(1.0);
+                } else {
+                    cluster.score *= 0.97;
+                }
+
+                if let Some(compressor) = &self.compressor {
+                    if let Some(label) = &cluster.label {
+                        cluster.compressed = Some(
+                            compressor.compress(&(
+                                cluster.id,
+                                &cluster.nodes,
+                                label,
+                                cluster.score,
+                                cluster.polygon.as_ref(),
+                            ))
+                        );
+                    }
+                }
+            });
+
+        if let Some(compressor) = &self.compressor {
+            let scratch = self.build_scratch_pad();
+            let _ = compressor.compress(&(
+                "optimize_clusters_scratch",
+                &scratch.layer_a,
+                &scratch.layer_b,
+            ));
         }
     }
 }
@@ -236,16 +329,14 @@ fn build_polygon_region(web: &KvWeb, nodes: &[WebNodeId], polygon_id: u32) -> Op
         return None;
     }
 
-    // Compute centroid from node scores, token count, and connectivity.
-    let mut centroid = vec![0.0; 3]; // [score, token_density, connectivity]
+    let mut centroid = vec![0.0; 3];
     let mut count = 0.0;
 
     for id in nodes {
         if let Some(node) = web.nodes.get(id) {
-            centroid[0] += node.score;                 // semantic magnitude
-            centroid[1] += node.tokens.len() as f32;   // density
+            centroid[0] += node.score;
+            centroid[1] += node.tokens.len() as f32;
 
-            // connectivity: number of outgoing edges from this node
             let conn = web.edges.iter().filter(|e| e.from == node.id).count() as f32;
             centroid[2] += conn;
 
@@ -259,7 +350,6 @@ fn build_polygon_region(web: &KvWeb, nodes: &[WebNodeId], polygon_id: u32) -> Op
         }
     }
 
-    // Radius: average deviation from centroid
     let mut radius_acc = 0.0;
     let mut radius_count = 0.0;
 
@@ -282,7 +372,6 @@ fn build_polygon_region(web: &KvWeb, nodes: &[WebNodeId], polygon_id: u32) -> Op
         1.0
     };
 
-    // Face index: simple bucket based on radius
     let face_index = if radius < 1.0 {
         3
     } else if radius < 3.0 {
@@ -301,7 +390,6 @@ fn build_polygon_region(web: &KvWeb, nodes: &[WebNodeId], polygon_id: u32) -> Op
     })
 }
 
-/// Compute average score for a cluster.
 fn avg_score(web: &KvWeb, nodes: &[WebNodeId]) -> f32 {
     if nodes.is_empty() {
         return 0.0;
@@ -324,7 +412,6 @@ fn avg_score(web: &KvWeb, nodes: &[WebNodeId]) -> f32 {
     }
 }
 
-/// Evaluate geometry quality for a cluster: routing error, radius error, face index confidence.
 fn evaluate_cluster_geometry(
     web: &KvWeb,
     nodes: &[WebNodeId],
@@ -362,7 +449,6 @@ fn evaluate_cluster_geometry(
         radius_error /= count;
     }
 
-    // Face index confidence: higher when radius is within a reasonable band.
     let face_index_confidence = if let Some(poly) = polygon {
         let r = poly.radius;
         if r < 1.0 {
@@ -381,7 +467,6 @@ fn evaluate_cluster_geometry(
     (routing_error, radius_error, face_index_confidence)
 }
 
-/// Optimize centroid toward high‑score / high‑connectivity nodes.
 fn optimize_centroid(web: &KvWeb, nodes: &[WebNodeId], polygon: &mut PolygonRegion) {
     if nodes.is_empty() {
         return;
@@ -404,23 +489,19 @@ fn optimize_centroid(web: &KvWeb, nodes: &[WebNodeId], polygon: &mut PolygonRegi
         }
     }
 
-    // Smoothly move centroid toward best candidate.
     for i in 0..polygon.centroid.len() {
         polygon.centroid[i] = (polygon.centroid[i] * 0.7) + (best_centroid[i] * 0.3);
     }
 }
 
-/// Optimize face index based on confidence and target smoothness.
 fn optimize_face_index(
     polygon: &mut PolygonRegion,
     confidence: f32,
     target_smoothness: f32,
 ) {
-    // Higher confidence → keep face index stable, lower confidence → nudge toward mid‑range.
     let mut target_face = polygon.face_index as f32;
 
     if confidence < 0.6 {
-        // Nudge toward a more neutral face index.
         target_face = 1.5;
     }
 

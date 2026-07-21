@@ -2,20 +2,24 @@
 //!
 //! Embedding-based similarity for KV Web nodes + Polygonal-KV geometry.
 //!
-//! This module assumes you have some external embedding provider.
-//! Polygonal-KV adds:
+//! Adds:
 //! - centroid-weighted similarity
 //! - face-index semantic bias
 //! - radius-based gating
+//! - dual-layer scratch pads (embedding + semantic geometry)
+//! - parallel embedding similarity (edge computation)
+//! - indexing + zoning for similarity clusters
+//! - GPU-ready compressed packets
 //!
 //! All upgrades are backwards-compatible.
 
 use kv_web_core::{KvWeb, WebNodeId};
+use rayon::prelude::*;
+use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 
 /// Trait for an embedding provider.
 pub trait EmbeddingProvider {
-    /// Get an embedding for a node label or content.
     fn embed_node(&self, node_id: WebNodeId, web: &KvWeb) -> Vec<f32>;
 }
 
@@ -39,7 +43,6 @@ pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 }
 
 /// Polygon-aware similarity modifier.
-/// Uses centroid, radius, and face index to bias similarity.
 fn polygon_similarity_bias(
     web: &KvWeb,
     a: WebNodeId,
@@ -64,25 +67,64 @@ fn polygon_similarity_bias(
         None => return base_sim,
     };
 
-    // Face match bonus
-    let face_bonus = if poly_a.face_index == poly_b.face_index {
-        0.15
-    } else {
-        0.0
-    };
+    let face_bonus = if poly_a.face_index == poly_b.face_index { 0.15 } else { 0.0 };
 
-    // Centroid distance penalty
     let mut centroid_dist = 0.0;
     for (ca, cb) in poly_a.centroid.iter().zip(poly_b.centroid.iter()) {
         centroid_dist += (ca - cb).abs();
     }
-    let centroid_penalty = (centroid_dist / (poly_a.radius + poly_b.radius + 1.0)).min(0.25);
+    let centroid_penalty =
+        (centroid_dist / (poly_a.radius + poly_b.radius + 1.0)).min(0.25);
 
-    // Final polygon-aware similarity
     base_sim + face_bonus - centroid_penalty
 }
 
+/// Dual-layer scratch pad for embedding similarity.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmbeddingScratchPad {
+    pub layer_a: Vec<f32>, // raw embedding similarity
+    pub layer_b: Vec<f32>, // polygon geometry bias
+}
+
+/// Zoning + indexing for embedding similarity.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmbeddingZoning {
+    pub root: WebNodeId,
+    pub nodes: Vec<WebNodeId>,
+    pub index_map: Vec<WebNodeId>,
+    pub zones: Vec<EmbeddingZone>,
+    pub scratch: EmbeddingScratchPad,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmbeddingZone {
+    pub zone_id: usize,
+    pub start: usize,
+    pub end: usize,
+    pub centroid_node: Option<WebNodeId>,
+    pub size: usize,
+}
+
+/// Build dual-layer scratch pad for embedding similarity.
+fn build_embedding_scratch_pad(
+    web: &KvWeb,
+    root: WebNodeId,
+    nodes: &[WebNodeId],
+    sims: &[f32],
+) -> EmbeddingScratchPad {
+    let layer_a = sims.to_vec();
+
+    let mut layer_b = Vec::with_capacity(nodes.len());
+    for node in nodes {
+        let bias = polygon_similarity_bias(web, root, *node, 1.0);
+        layer_b.push(bias);
+    }
+
+    EmbeddingScratchPad { layer_a, layer_b }
+}
+
 /// Build similarity edges between nodes based on embeddings + polygon geometry.
+/// Parallelizes similarity computation, then applies edges sequentially.
 pub fn build_similarity_edges(
     web: &mut KvWeb,
     provider: &dyn EmbeddingProvider,
@@ -92,29 +134,133 @@ pub fn build_similarity_edges(
     let mut embeddings: HashMap<WebNodeId, Vec<f32>> = HashMap::new();
 
     for id in web.nodes.keys() {
-        let emb = provider.embed_node(*id, web);
-        embeddings.insert(*id, emb);
+        embeddings.insert(*id, provider.embed_node(*id, web));
     }
 
     let ids: Vec<WebNodeId> = web.nodes.keys().cloned().collect();
 
-    for (i, &a) in ids.iter().enumerate() {
-        for &b in ids.iter().skip(i + 1) {
-            let ea = &embeddings[&a];
-            let eb = &embeddings[&b];
+    // Compute candidate edges in parallel, but don't mutate `web` inside the closure.
+    let candidate_edges: Vec<(WebNodeId, WebNodeId, f32)> = ids
+        .par_iter()
+        .enumerate()
+        .flat_map(|(i, &a)| {
+            let mut local_edges = Vec::new();
+            for &b in ids.iter().skip(i + 1) {
+                let ea = &embeddings[&a];
+                let eb = &embeddings[&b];
 
-            let base_sim = cosine_similarity(ea, eb);
+                let base_sim = cosine_similarity(ea, eb);
+                let sim = polygon_similarity_bias(web, a, b, base_sim);
 
-            // Polygon-aware similarity upgrade
-            let sim = polygon_similarity_bias(web, a, b, base_sim);
-
-            if sim >= threshold {
-                let w = sim * weight_scale;
-                web.add_edge(a, b, w, kv_web_core::EdgeKind::Semantic);
-                web.add_edge(b, a, w, kv_web_core::EdgeKind::Semantic);
+                if sim >= threshold {
+                    let w = sim * weight_scale;
+                    local_edges.push((a, b, w));
+                }
             }
+            local_edges
+        })
+        .collect();
+
+    // Apply edges sequentially to avoid mutable borrow inside parallel closure.
+    for (a, b, w) in candidate_edges {
+        web.add_edge(a, b, w, kv_web_core::EdgeKind::Semantic);
+        web.add_edge(b, a, w, kv_web_core::EdgeKind::Semantic);
+    }
+}
+
+/// Build zoning + indexing + scratch pad for embedding similarity.
+pub fn embedding_index_and_zone(
+    web: &KvWeb,
+    root: WebNodeId,
+    provider: &dyn EmbeddingProvider,
+    threshold: f32,
+    num_zones: usize,
+) -> EmbeddingZoning {
+    let root_emb = provider.embed_node(root, web);
+
+    let mut nodes = Vec::new();
+    let mut sims = Vec::new();
+
+    for id in web.nodes.keys() {
+        let emb = provider.embed_node(*id, web);
+        let base = cosine_similarity(&root_emb, &emb);
+        let sim = polygon_similarity_bias(web, root, *id, base);
+
+        if sim >= threshold {
+            nodes.push(*id);
+            sims.push(sim);
         }
     }
+
+    let mut index_map = nodes.clone();
+    index_map.sort_by(|a, b| {
+        let ia = nodes.iter().position(|x| x == a).unwrap();
+        let ib = nodes.iter().position(|x| x == b).unwrap();
+        let sa = sims[ia];
+        let sb = sims[ib];
+        sb.partial_cmp(&sa).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let num_zones = num_zones.max(1);
+    let len = index_map.len();
+    let zone_size = (len as f32 / num_zones as f32).ceil() as usize;
+
+    let mut zones = Vec::new();
+    let mut zone_id = 0;
+    let mut start = 0;
+
+    while start < len {
+        let end = (start + zone_size).min(len);
+        let slice = &index_map[start..end];
+
+        let centroid_node = slice.get(slice.len() / 2).cloned();
+
+        zones.push(EmbeddingZone {
+            zone_id,
+            start,
+            end,
+            centroid_node,
+            size: slice.len(),
+        });
+
+        zone_id += 1;
+        start = end;
+    }
+
+    let scratch = build_embedding_scratch_pad(web, root, &nodes, &sims);
+
+    EmbeddingZoning {
+        root,
+        nodes,
+        index_map,
+        zones,
+        scratch,
+    }
+}
+
+/// Compressed embedding zoning (GPU-ready).
+pub fn embedding_index_and_zone_compressed(
+    web: &KvWeb,
+    root: WebNodeId,
+    provider: &dyn EmbeddingProvider,
+    threshold: f32,
+    num_zones: usize,
+) -> Option<Vec<u8>> {
+    let ez = embedding_index_and_zone(web, root, provider, threshold, num_zones);
+
+    web.compressor.as_ref().map(|c| {
+        c.compress(&(
+            "embedding_index_and_zone",
+            root,
+            threshold,
+            num_zones,
+            &ez.nodes,
+            &ez.index_map,
+            &ez.zones,
+            &ez.scratch.layer_a,
+            &ez.scratch.layer_b,
+        ))
+    })
 }
 
 /// Optimization config for embedding-based similarity.
@@ -129,7 +275,6 @@ pub struct EmbeddingOptimizationConfig {
 }
 
 /// Max-tier optimization loop for embedding similarity.
-/// Adjusts threshold and weight_scale based on resulting semantic edge density.
 pub fn optimize_embedding_similarity(
     web: &KvWeb,
     current_threshold: &mut f32,
@@ -147,13 +292,8 @@ pub fn optimize_embedding_similarity(
         .filter(|e| matches!(e.kind, kv_web_core::EdgeKind::Semantic))
         .count() as f32;
 
-    let density = if node_count > 0.0 {
-        edge_count / node_count
-    } else {
-        0.0
-    };
+    let density = edge_count / node_count;
 
-    // If density is too low, lower threshold and increase weight_scale slightly.
     if density < opt_cfg.target_edge_density {
         *current_threshold =
             (*current_threshold * 0.95).max(opt_cfg.min_threshold);
@@ -161,7 +301,6 @@ pub fn optimize_embedding_similarity(
             (*current_weight_scale * 1.05).min(opt_cfg.max_weight_scale);
     }
 
-    // If density is too high, raise threshold and decrease weight_scale slightly.
     if density > opt_cfg.max_edge_density {
         *current_threshold =
             (*current_threshold * 1.05).min(opt_cfg.max_threshold);
@@ -169,4 +308,5 @@ pub fn optimize_embedding_similarity(
             (*current_weight_scale * 0.9).max(opt_cfg.min_weight_scale);
     }
 }
+
 

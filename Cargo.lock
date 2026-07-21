@@ -849,6 +849,7 @@ version = "0.1.0"
 dependencies = [
  "bitdrop_v2",
  "kv_web_core",
+ "rayon",
  "serde",
 ]
 

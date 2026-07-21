@@ -850,3 +850,715 @@ REQUIRES a paid commercial license.
 
 Evaluator’s ONLY path to continued use is purchasing a commercial license.
 
+
+
+📄 Evaluation License Agreement — Version 3.4 (Updated Summary)
+
+Autonomous Cognitive Architecture + Tier‑7 Semantic Geometry + Hybrid PKM GPU Routing Edition
+
+© Thomas Price. All Rights Reserved.
+
+
+
+This summary reflects all new protected mechanisms introduced in KV‑Webb Runtime 3.4.
+
+
+
+⭐ Tier‑7 Semantic Geometry Systems (Updated)
+
+The following mechanisms are proprietary and protected:
+
+
+
+multi‑layer semantic heatmap engine
+
+
+
+polygon‑weighted heatmaps
+
+
+
+centroid‑penalty + radius‑aware smoothing
+
+
+
+multi‑layer smoothing logic
+
+
+
+dual‑layer scratch pads
+
+
+
+per‑layer index maps
+
+
+
+per‑layer zoning engine
+
+
+
+zone segmentation + zone ranges
+
+
+
+zone complexity scoring
+
+
+
+zone‑driven semantic routing
+
+
+
+zone‑driven compression ordering
+
+
+
+heatmap‑driven GPU routing
+
+
+
+heatmap‑driven BitDrop\_v2 collapse ordering
+
+
+
+heatmap performance metrics
+
+
+
+autonomous heatmap optimizer
+
+
+
+variance‑driven smoothing adjustment
+
+
+
+zone‑complexity‑driven routing adjustment
+
+
+
+semantic‑geometry routing heuristics
+
+
+
+Re‑implementation, simulation, approximation, or functional duplication is prohibited.
+
+
+
+⭐ Multi‑Layer Heatmap Engine (Protected Mechanism)
+
+Evaluator may not replicate or derive:
+
+
+
+raw semantic heatmap generation
+
+
+
+polygon‑weighted heatmaps
+
+
+
+multi‑layer smoothing + normalization
+
+
+
+per‑layer scratch pads
+
+
+
+per‑layer index maps
+
+
+
+heatmap‑driven semantic routing
+
+
+
+heatmap‑driven compression ordering
+
+
+
+heatmap‑driven GPU region selection
+
+
+
+These constitute proprietary semantic‑geometry mechanisms.
+
+
+
+⭐ Zoning Engine (Protected Mechanism)
+
+Evaluator may not replicate or derive:
+
+
+
+zone segmentation
+
+
+
+zone ID assignment
+
+
+
+zone range generation
+
+
+
+zone centroid detection
+
+
+
+zone statistics
+
+
+
+zone complexity scoring
+
+
+
+zone‑driven routing
+
+
+
+zone‑driven pruning
+
+
+
+zone‑driven compression
+
+
+
+zone‑driven GPU mask building
+
+
+
+Zoning is a protected semantic‑geometry subsystem.
+
+
+
+⭐ Heatmap Auto‑Optimizer (Protected Autonomous Mechanism)
+
+Evaluator may not replicate or derive:
+
+
+
+variance‑driven smoothing adjustment
+
+
+
+zone‑complexity‑driven tuning
+
+
+
+multi‑layer performance‑driven tuning
+
+
+
+autonomous semantic‑geometry tuning
+
+
+
+autonomous routing parameter tuning
+
+
+
+autonomous compression parameter tuning
+
+
+
+The auto‑optimizer is proprietary.
+
+
+
+⭐ Heatmap Performance Metrics (Protected Observability Mechanism)
+
+Evaluator may not read, write, or interoperate with:
+
+
+
+heatmap build‑time metrics
+
+
+
+per‑layer smoothing metrics
+
+
+
+per‑layer indexing metrics
+
+
+
+per‑layer zoning metrics
+
+
+
+semantic‑geometry performance packets
+
+
+
+heatmap‑driven optimization packets
+
+
+
+These formats are proprietary.
+
+
+
+⭐ Tier‑6 GPU Routing Systems (Hybrid PKM + Adaptive Daemons)
+
+Evaluator may not replicate or derive:
+
+
+
+Hybrid PKM routing model (queue + streams)
+
+
+
+adaptive PKM daemon scheduling
+
+
+
+GPU‑resident routing brain
+
+
+
+semantic‑priority routing heuristics
+
+
+
+load‑priority routing heuristics
+
+
+
+hybrid semantic+load routing
+
+
+
+roundabout routing logic
+
+
+
+drift‑aware GPU re‑circulation
+
+
+
+polygon‑weighted GPU exits
+
+
+
+heatmap‑weighted GPU exits
+
+
+
+zone‑weighted GPU exits
+
+
+
+SM‑aware + warp‑aware routing
+
+
+
+multi‑stream GPU routing
+
+
+
+dynamic GPU batch scaling
+
+
+
+GPU block/grid scaling heuristics
+
+
+
+GPU routing packets + metadata formats
+
+
+
+GPU daemon coordination logic
+
+
+
+GPU crossover heuristics
+
+
+
+GPU scheduling heuristics
+
+
+
+GPU persistent‑kernel routing behavior
+
+
+
+GPU autonomous optimization loops
+
+
+
+Functional duplication is prohibited.
+
+
+
+⭐ Autonomous GPU Routing Behavior (Protected)
+
+Evaluator may not analyze or approximate:
+
+
+
+GPU‑resident decision‑making
+
+
+
+GPU‑resident routing heuristics
+
+
+
+GPU‑resident drift stabilization
+
+
+
+GPU‑resident semantic weighting
+
+
+
+GPU‑resident load balancing
+
+
+
+GPU‑resident polygon routing
+
+
+
+GPU‑resident heatmap routing
+
+
+
+GPU‑resident zone routing
+
+
+
+GPU‑resident branch routing
+
+
+
+GPU‑resident pruning routing
+
+
+
+GPU‑resident compression routing
+
+
+
+These behaviors are proprietary.
+
+
+
+⭐ Hybrid Priority Routing (Semantic + Load + Geometry)
+
+Evaluator may not replicate:
+
+
+
+semantic‑weighted routing
+
+
+
+load‑weighted routing
+
+
+
+hybrid semantic+load routing
+
+
+
+drift‑weighted routing
+
+
+
+polygon‑weighted routing
+
+
+
+heatmap‑weighted routing
+
+
+
+zone‑weighted routing
+
+
+
+stability‑weighted routing
+
+
+
+Hybrid priority routing is a protected cognitive routing mechanism.
+
+
+
+⭐ Anti‑Functional‑Equivalence (Updated)
+
+Evaluator may not build any system that uses:
+
+
+
+GPU daemons
+
+
+
+persistent GPU kernels
+
+
+
+hybrid PKM routing
+
+
+
+roundabout routing
+
+
+
+semantic‑priority routing
+
+
+
+load‑priority routing
+
+
+
+hybrid semantic+load routing
+
+
+
+polygon‑weighted exits
+
+
+
+heatmap‑weighted exits
+
+
+
+zone‑weighted exits
+
+
+
+drift‑aware routing
+
+
+
+multi‑stream GPU routing
+
+
+
+SM‑aware routing
+
+
+
+warp‑aware routing
+
+
+
+GPU optimization loops
+
+
+
+semantic‑geometry routing
+
+
+
+multi‑layer heatmaps
+
+
+
+zoning segmentation
+
+
+
+heatmap auto‑optimization
+
+
+
+Functional duplication is prohibited.
+
+
+
+⭐ Academic Restrictions (Updated)
+
+Evaluator may not:
+
+
+
+study
+
+
+
+analyze
+
+
+
+publish
+
+
+
+teach
+
+
+
+research
+
+
+
+document
+
+
+
+present
+
+
+
+any part of:
+
+
+
+Hybrid PKM routing
+
+
+
+adaptive GPU daemons
+
+
+
+roundabout routing logic
+
+
+
+GPU‑resident routing heuristics
+
+
+
+autonomous GPU optimization
+
+
+
+polygon‑weighted GPU routing
+
+
+
+heatmap‑weighted GPU routing
+
+
+
+zone‑weighted GPU routing
+
+
+
+semantic‑geometry routing
+
+
+
+multi‑layer heatmap engine
+
+
+
+zoning engine
+
+
+
+heatmap auto‑optimizer
+
+
+
+scheduler‑GPU coordination
+
+
+
+These systems are protected intellectual property.
+
+
+
+⭐ Commercial License Requirement (Updated)
+
+Any use beyond evaluation — including:
+
+
+
+GPU routing
+
+
+
+Hybrid PKM
+
+
+
+adaptive GPU daemons
+
+
+
+roundabout routing
+
+
+
+polygon‑weighted routing
+
+
+
+heatmap‑weighted routing
+
+
+
+zone‑weighted routing
+
+
+
+drift‑aware routing
+
+
+
+autonomous GPU optimization
+
+
+
+scheduler‑GPU coordination
+
+
+
+persistent‑kernel routing
+
+
+
+multi‑stream routing
+
+
+
+SM‑aware routing
+
+
+
+warp‑aware routing
+
+
+
+semantic‑geometry routing
+
+
+
+multi‑layer heatmaps
+
+
+
+zoning segmentation
+
+
+
+heatmap auto‑optimization
+
+
+
+requires a paid commercial license.
+
+
+
+Evaluator’s only path to continued use is purchasing a commercial license.
+
+
+

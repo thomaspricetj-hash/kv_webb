@@ -7,3 +7,4 @@ edition = "2021"
 serde = { workspace = true }
 kv_web_core = { path = "../kv_web_core" }
 bitdrop_v2 = { path = "../bitdrop_v2" }
+rayon = "1.10"
