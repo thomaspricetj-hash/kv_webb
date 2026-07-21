@@ -1,8 +1,15 @@
 //! gpu.rs
 //! GPU‑accelerated KV subset selection and attention mask building.
 //!
-//! Uses NVIDIA CUDA through the `cust` crate.
+//! Uses NVIDIA CUDA through the `cust` crate`.
 //! Falls back to CPU if CUDA is unavailable.
+//!
+//! Tier‑6 → Tier‑8 unified version:
+//! - Keeps all original logic.
+//! - Adds max‑tier routing, load feedback, compression‑friendly chunking,
+//!   and extended roundabout behavior.
+//! - Designed so you can later wire real GPU‑side compression and PKM daemons
+//!   without changing call sites.
 
 use kv_web_core::{WebNodeId, KvWeb};
 use kv_web_runtime::KvWebRuntime;
@@ -71,6 +78,14 @@ pub struct GpuLoad {
     pub current_load: f32,
 }
 
+/// Compression‑aware routing hints (entropy, density, etc.).
+#[derive(Debug, Clone)]
+pub struct CompressionRoutingHints {
+    pub entropy_score: f32,
+    pub avg_token_gap: f32,
+    pub high_density: bool,
+}
+
 /// Read GPU load using device attributes (placeholder current_load).
 pub fn read_gpu_load(device: &Device) -> GpuLoad {
     let sm_count = device
@@ -94,13 +109,98 @@ pub fn read_gpu_load(device: &Device) -> GpuLoad {
     }
 }
 
-/// Partition region tokens into balanced chunks based on GPU load + hybrid priority.
+/// Simple entropy/density estimator for compression‑aware chunk shaping.
+pub fn estimate_compression_hints(region: &[u32]) -> CompressionRoutingHints {
+    if region.is_empty() {
+        return CompressionRoutingHints {
+            entropy_score: 0.0,
+            avg_token_gap: 0.0,
+            high_density: false,
+        };
+    }
+
+    let mut gaps = Vec::with_capacity(region.len().saturating_sub(1));
+    for w in region.windows(2) {
+        gaps.push(w[1].saturating_sub(w[0]) as f32);
+    }
+
+    let avg_gap = if gaps.is_empty() {
+        0.0
+    } else {
+        gaps.iter().sum::<f32>() / gaps.len() as f32
+    };
+
+    // Very rough entropy proxy: larger gaps → higher entropy.
+    let entropy = avg_gap.min(1024.0) / 1024.0;
+    let high_density = avg_gap < 8.0;
+
+    CompressionRoutingHints {
+        entropy_score: entropy,
+        avg_token_gap: avg_gap,
+        high_density,
+    }
+}
+
+/// GPU‑side BitDrop_v2 collapse wiring.
+/// Expects a `bitdrop_collapse` kernel in the same module.
+/// Falls back to identity if kernel is missing.
+fn gpu_bitdrop_collapse_region(module: &Module, region: &[u32]) -> Vec<u32> {
+    let len = region.len();
+    if len == 0 {
+        return Vec::new();
+    }
+
+    let func = match module.get_function("bitdrop_collapse") {
+        Ok(f) => f,
+        Err(_) => return region.to_vec(),
+    };
+
+    let input_buf = match DeviceBuffer::from_slice(region) {
+        Ok(b) => b,
+        Err(_) => return region.to_vec(),
+    };
+
+    let mut output_buf = match DeviceBuffer::<u32>::zeroed(len) {
+        Ok(b) => b,
+        Err(_) => return region.to_vec(),
+    };
+
+    let threads_per_block = 256u32;
+    let blocks = ((len as u32 + threads_per_block - 1) / threads_per_block).max(1);
+
+    // Use a local NON_BLOCKING stream for this collapse pass.
+    let stream = Stream::new(StreamFlags::NON_BLOCKING, None).unwrap();
+
+    unsafe {
+        launch!(
+            func<<<blocks, threads_per_block, 0, stream>>>(
+                input_buf.as_device_ptr(),
+                output_buf.as_device_ptr(),
+                len as u32
+            )
+        )
+        .unwrap();
+    }
+
+    stream.synchronize().unwrap();
+
+    let mut out = vec![0u32; len];
+    if output_buf.copy_to(&mut out).is_err() {
+        return region.to_vec();
+    }
+
+    out
+}
+
+/// Partition region tokens into balanced chunks based on GPU load + hybrid priority
+/// + compression‑aware shaping. No original logic removed; only extended.
 pub fn partition_region_for_gpu(
     region: &[u32],
     load: &GpuLoad,
     state: &GpuOptimizationState,
 ) -> Vec<Vec<u32>> {
     let base_batch = state.region_batch;
+    let hints = estimate_compression_hints(region);
 
     // Hybrid priority: combine load + region size heuristics
     let mut adjusted_batch = base_batch;
@@ -117,6 +217,16 @@ pub fn partition_region_for_gpu(
         adjusted_batch = adjusted_batch / 2;
     }
 
+    // Compression‑aware shaping: dense regions → smaller chunks.
+    if hints.high_density {
+        adjusted_batch = (adjusted_batch as f32 * 0.75) as usize;
+    } else if hints.entropy_score > 0.7 {
+        adjusted_batch = (adjusted_batch as f32 * 1.25) as usize;
+    }
+
+    // Align batch size to warp size to keep GPU execution efficient.
+    let warp = load.warp_size.max(32) as usize;
+    adjusted_batch = ((adjusted_batch / warp).max(1)) * warp;
     adjusted_batch = adjusted_batch.max(32);
 
     let mut chunks = Vec::new();
@@ -131,7 +241,8 @@ pub fn partition_region_for_gpu(
     chunks
 }
 
-/// Multi‑stream GPU execution with hybrid routing (roundabout exits).
+/// Multi‑stream GPU execution with hybrid routing (roundabout exits + basic
+/// re‑circulation). Original roundabout logic preserved and extended.
 pub fn build_attention_mask_gpu_balanced(
     region_chunks: &[Vec<u32>],
     kv_len: usize,
@@ -164,6 +275,10 @@ pub fn build_attention_mask_gpu_balanced(
         Err(_) => return vec![0.0f32; kv_len],
     };
 
+    // Warp‑aware threads per block.
+    let warp_size = load.warp_size.max(32);
+    let tuned_block_size = block_size.max(warp_size);
+
     if streams.is_empty() {
         // Single‑stream fallback
         let stream = Stream::new(StreamFlags::NON_BLOCKING, None).unwrap();
@@ -174,7 +289,7 @@ pub fn build_attention_mask_gpu_balanced(
             };
             let region_len = chunk.len() as u32;
 
-            let threads_per_block = block_size.max(32);
+            let threads_per_block = tuned_block_size;
             let blocks = ((region_len + threads_per_block - 1) / threads_per_block).max(1);
 
             unsafe {
@@ -191,7 +306,10 @@ pub fn build_attention_mask_gpu_balanced(
         }
         stream.synchronize().unwrap();
     } else {
-        // Roundabout routing: choose exits (streams) based on semantic vs load bias.
+        // Roundabout routing: choose exits (streams) based on semantic vs load bias,
+        // with simple re‑circulation when load is high.
+        let half = (streams.len() / 2).max(1);
+
         for (i, chunk) in region_chunks.iter().enumerate() {
             let region_buf = match DeviceBuffer::from_slice(chunk) {
                 Ok(buf) => buf,
@@ -199,18 +317,22 @@ pub fn build_attention_mask_gpu_balanced(
             };
             let region_len = chunk.len() as u32;
 
-            // small chunks → semantic exits (lower index)
-            // large chunks → performance exits (upper index)
             let semantic_bias = region_len < 1024;
-            let stream_index = if semantic_bias {
-                i % (streams.len() / 2).max(1)
+            let mut stream_index = if semantic_bias {
+                i % half
             } else {
-                (i + streams.len() / 2) % streams.len()
+                (i + half) % streams.len()
             };
+
+            // Basic re‑circulation: if load is high and chunk is large, push to
+            // a different exit to avoid congestion.
+            if load.current_load > 0.75 && region_len > 4096 {
+                stream_index = (stream_index + 1) % streams.len();
+            }
 
             let stream = &streams[stream_index];
 
-            let threads_per_block = block_size.max(32);
+            let threads_per_block = tuned_block_size;
             let blocks = ((region_len + threads_per_block - 1) / threads_per_block).max(1);
 
             unsafe {
@@ -293,7 +415,7 @@ pub fn build_attention_mask_gpu(
 
     let region_vec: Vec<u32> = region.iter().map(|t| t.0 as u32).collect();
 
-    // CUDA kernel source (simple mask builder)
+    // CUDA kernel source (simple mask builder + BitDrop_v2 hooks expected in module)
     let ptx = r#"
     .version 7.0
     .target sm_70
@@ -350,8 +472,11 @@ pub fn build_attention_mask_gpu(
         }
     };
 
+    // GPU‑side BitDrop_v2 collapse of region before routing.
+    let collapsed_region_vec = gpu_bitdrop_collapse_region(&module, &region_vec);
+
     let load = read_gpu_load(&gpu_ctx.device);
-    let region_chunks = partition_region_for_gpu(&region_vec, &load, &state);
+    let region_chunks = partition_region_for_gpu(&collapsed_region_vec, &load, &state);
 
     build_attention_mask_gpu_balanced(&region_chunks, kv_len, &module, state.block_size, &load)
 }
@@ -362,11 +487,12 @@ pub fn build_attention_mask_gpu(
 
 /// Max-tier optimization loop for GPU mask building.
 /// Tunes GPU/CPU crossover, batching, and block size.
+/// Original logic preserved, extended with crossover heuristics.
 pub fn optimize_gpu(
     web: &KvWeb,
     root: WebNodeId,
     depth: usize,
-    _kv_len: usize,
+    kv_len: usize,
     state: &mut GpuOptimizationState,
     cfg: &GpuOptimizationConfig,
 ) {
@@ -380,6 +506,11 @@ pub fn optimize_gpu(
     } else if region_size > cfg.max_gpu_threshold {
         state.gpu_threshold =
             ((state.gpu_threshold as f32 * 1.1) as usize).min(cfg.max_gpu_threshold);
+    }
+
+    // Additional crossover heuristic: very large KV → prefer GPU.
+    if kv_len > 16384 && region_size > cfg.min_gpu_threshold {
+        state.gpu_threshold = cfg.min_gpu_threshold;
     }
 
     // 2) Region batching tuning
@@ -398,4 +529,5 @@ pub fn optimize_gpu(
 
     // No compression here — GPU tuning is runtime-only.
 }
+
 
