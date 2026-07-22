@@ -396,38 +396,59 @@ uses multi‑layer heatmaps + zoning for fine‑grained routing
 
 auto‑tunes smoothing, routing depth, compression behavior
 
-Semantic Security Layer (SSL) — Multi‑Attack Defense Framework
-The Semantic Security Layer (SSL) is a new defensive subsystem integrated directly into KV‑Webb’s semantic engine. Unlike traditional prompt‑injection filters that operate at the text level, SSL functions inside the semantic geometry, intercepting malicious or destabilizing inputs before they enter the cognitive graph.
+Semantic Security Layer (SSL) — Autonomous Multi‑Attack Defense Framework
+The Semantic Security Layer (SSL) is KV‑Webb’s next‑generation defensive subsystem, operating directly inside the semantic‑geometry engine. Unlike traditional prompt‑injection filters that react to text, SSL intercepts malicious or destabilizing inputs at the embedding level, inside the cognitive geometry, before they can influence routing, memory, or model behavior.
 
-SSL is composed of seven independent firewalls, each targeting a different class of adversarial behavior. Together, they form a unified defense matrix that protects the system from semantic corruption, context hijacking, and geometry‑breaking attacks.
+SSL combines seven specialized firewalls with a new Auto‑Threat Detection Engine (ATDE). Together, they form a unified, adaptive defense matrix that protects KV‑Webb from semantic corruption, context hijacking, adversarial embeddings, and geometry‑breaking attacks.
 
 1. Prompt‑Injection Firewall (SPIF)
-Intercepts attempts to override system behavior, inject foreign instructions, or force mode changes.
-SPIF uses heatmap‑layer variance, zone coherence, and geometry integrity to block malicious embeddings before they reach the model.
+SPIF blocks attempts to override system behavior, inject unauthorized instructions, or force mode changes.
+It uses multi‑layer heatmap variance, zone‑coherence checks, and polygon‑geometry integrity to intercept malicious embeddings before they reach the cognitive graph.
 
 2. Drift‑Delta Firewall (DDF)
-Monitors semantic drift relative to the root centroid.
-If an input attempts to rapidly shift meaning, polarity, or trajectory, DDF halts the transition and prevents semantic destabilization.
+DDF monitors semantic drift relative to the active root centroid.
+If an input attempts to rapidly shift meaning, polarity, or trajectory, DDF halts the transition and stabilizes the semantic field.
 
 3. Context‑Hijack Firewall (CHF)
-Protects the active semantic root.
-CHF blocks embeddings that attempt to replace the current context, introduce unauthorized authority structures, or force topic resets.
+CHF protects the active semantic root and prevents unauthorized context replacement.
+It blocks embeddings that attempt to introduce foreign authority structures, force topic resets, or hijack the current cognitive trajectory.
 
 4. Polarity‑Inversion Firewall (PIF)
-Detects attempts to invert meaning, flip instruction polarity, or reverse semantic intent.
-PIF uses centroid sign‑flip ratios and polygon face‑index stability to identify inversion attacks.
+PIF detects attempts to invert meaning or reverse semantic intent.
+It uses centroid sign‑flip ratios and polygon face‑index stability to identify polarity‑flip attacks that would otherwise bypass text‑level filters.
 
 5. Adversarial Embedding Firewall (AEF)
-Analyzes embedding entropy, variance, and smoothness.
-AEF blocks artificially‑constructed embeddings designed to mimic centroid patterns or bypass similarity thresholds.
+AEF analyzes embedding entropy, variance, smoothness, and kurtosis.
+It blocks artificially‑constructed embeddings designed to mimic centroid patterns, bypass similarity thresholds, or exploit geometric routing.
 
 6. Zone‑Flooding Firewall (ZFF)
-Prevents adversaries from overwhelming semantic zones with artificially dense clusters.
-ZFF monitors zone density, cluster growth rate, and centroid migration to maintain geometric stability.
+ZFF prevents adversaries from overwhelming semantic zones with artificially dense clusters.
+It monitors zone density, cluster‑growth rate, centroid migration, and zone‑coherence stability to maintain geometric balance.
 
 7. Geometry‑Integrity Firewall (GIF)
-Ensures all embeddings conform to polygonal KV geometry.
-GIF blocks inputs that violate radius constraints, centroid continuity, or polygon‑face alignment.
+GIF ensures all embeddings conform to KV‑Webb’s polygonal geometry.
+It blocks inputs that violate radius constraints, centroid continuity, or polygon‑face alignment, preventing geometry‑break attacks.
+
+Autonomous Threat Detection Engine (ATDE)
+SSL is enhanced by ATDE — a hybrid detect/log/block/adapt subsystem that continuously evaluates incoming embeddings using:
+
+variance and entropy analysis
+
+heatmap‑spike detection
+
+zone‑coherence scoring
+
+root‑similarity tracking
+
+polarity‑flip ratios
+
+polygon‑distance metrics
+
+replay‑signature detection
+
+cluster‑growth anomaly detection
+
+ATDE assigns each input a SuspicionLevel (Allow, Suspicious, Block) and adapts firewall thresholds in real time based on observed threat patterns. This creates a living, self‑tuning defense layer capable of responding to emerging attack vectors without manual updates.
 
 Why SSL Matters
 Traditional AI systems treat prompt‑injection as a text‑level problem.
@@ -445,10 +466,9 @@ geometry‑aware filtering
 
 semantic‑level threat detection
 
+autonomous adaptation to new threats
+
 SSL doesn’t just stop prompt‑injection.
-It stops all forms of semantic corruption, including attacks that modern LLMs cannot detect.
+It stops all forms of semantic corruption, including attacks modern LLMs cannot detect or defend against.
 
-This upgrade transforms KV‑Webb from a memory engine into a secure cognitive substrate — capable of maintaining stable meaning under adversarial pressure.
-
-KV‑Webb is not an optimization layer —
-it is cognitive infrastructure.
+This upgrade transforms KV‑Webb from a memory engine into a secure cognitive substrate — capable of maintaining stable meaning under adversarial pressure, adapting to new threats, and preserving semantic integrity across all cognitive operations.

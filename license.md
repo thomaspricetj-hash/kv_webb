@@ -1562,11 +1562,11 @@ Evaluator’s only path to continued use is purchasing a commercial license.
 
 
 
-📘 LICENSE ADDENDUM — Semantic Security Layer (SSL) Protection Clause
+📘 LICENSE ADDENDUM — Semantic Security Layer (SSL) Protection Clause (Enhanced Autonomous Edition)
 
 Semantic Security Layer (SSL) Protection.  
 
-The Semantic Security Layer (including but not limited to the Prompt‑Injection Firewall (SPIF), Drift‑Delta Firewall (DDF), Context‑Hijack Firewall (CHF), Polarity‑Inversion Firewall (PIF), Adversarial Embedding Firewall (AEF), Zone‑Flooding Firewall (ZFF), Geometry‑Integrity Firewall (GIF), and any related semantic‑security mechanisms, algorithms, heuristics, or detection logic) is proprietary technology owned exclusively by the Licensor.
+The Semantic Security Layer — including but not limited to the Prompt‑Injection Firewall (SPIF), Drift‑Delta Firewall (DDF), Context‑Hijack Firewall (CHF), Polarity‑Inversion Firewall (PIF), Adversarial Embedding Firewall (AEF), Zone‑Flooding Firewall (ZFF), Geometry‑Integrity Firewall (GIF), the Auto‑Threat Detection Engine (ATDE), adaptive threshold logic, suspicion‑level routing, threat‑scoring heuristics, and any related semantic‑security mechanisms, algorithms, heuristics, telemetry formats, or detection logic — is proprietary technology owned exclusively by the Licensor.
 
 
 
@@ -1574,31 +1574,51 @@ The Licensee is expressly prohibited from:
 
 
 
-Reverse‑engineering, decompiling, disassembling, analyzing, or attempting to derive the internal logic, structure, heuristics, or decision‑making criteria of any SSL component.
+1\. Reverse Engineering or Analysis  
+
+Reverse‑engineering, decompiling, disassembling, analyzing, probing, inspecting, or attempting to derive the internal logic, structure, heuristics, decision‑making criteria, adaptive behavior, or threat‑evaluation methods of any SSL component.
 
 
 
-Replicating, re‑implementing, simulating, approximating, or creating functionally‑equivalent systems, whether in whole or in part, regardless of method, medium, or abstraction level.
+2\. Replication or Functional Approximation  
+
+Replicating, re‑implementing, simulating, approximating, emulating, or creating any system that behaves similarly to any SSL subsystem, whether in whole or in part, regardless of method, medium, abstraction level, or computational domain.
 
 
 
-Using SSL outputs, behaviors, logs, or detection patterns to infer, reconstruct, or model any portion of the SSL’s internal mechanisms.
+3\. Use of SSL Outputs for Derivation  
+
+Using SSL outputs, suspicion levels, threat scores, logs, telemetry packets, or detection patterns to infer, reconstruct, approximate, or model any portion of the SSL’s internal mechanisms, adaptive logic, or semantic‑geometry defenses.
 
 
 
-Training, fine‑tuning, or evaluating any machine learning model using SSL outputs, decisions, or behaviors for the purpose of reproducing or approximating SSL functionality.
+4\. Machine Learning or Model Training  
+
+Training, fine‑tuning, evaluating, or supervising any machine learning model using SSL outputs, decisions, suspicion levels, threat events, or adaptive behaviors for the purpose of reproducing or approximating SSL functionality.
 
 
 
-Developing derivative works based on the SSL or any of its subcomponents, including semantic‑geometry defenses, centroid‑based detection, polygonal KV‑security logic, or multi‑layer heatmap anomaly detection.
+5\. Derivative Works  
+
+Developing derivative works based on any SSL subsystem, including semantic‑geometry defenses, centroid‑based detection, polygonal KV‑security logic, multi‑layer heatmap anomaly detection, adaptive thresholding, or autonomous threat‑evaluation heuristics.
 
 
 
-Bypassing, disabling, modifying, or interfering with any SSL subsystem or its enforcement logic.
+6\. Bypass or Interference  
+
+Bypassing, disabling, modifying, overriding, suppressing, or interfering with any SSL subsystem, adaptive mechanism, suspicion‑level routing, or enforcement logic.
 
 
 
-The SSL and all related firewalls constitute core security infrastructure.
+7\. Telemetry or Observability Interference  
+
+Reading, writing, exporting, intercepting, or attempting to interoperate with SSL telemetry formats, threat‑event packets, suspicion‑level logs, adaptive‑threshold updates, or internal observability structures.
+
+
+
+Core Infrastructure Status
+
+The SSL, ATDE, and all related firewalls constitute core security infrastructure.
 
 No rights are granted to the Licensee beyond the limited right to execute the SSL solely as integrated within the licensed software.
 
@@ -1606,5 +1626,17 @@ All other rights are reserved.
 
 
 
-Any attempt to violate, circumvent, or analyze the SSL constitutes immediate license termination, and the Licensor reserves the right to pursue all available legal remedies, including injunctive relief and damages.
+Autonomous Evolution Clause
+
+The Licensor may update, extend, modify, or evolve SSL behavior — including adaptive thresholds, detection heuristics, suspicion‑level routing, and autonomous threat‑evaluation logic — at any time and without notice.
+
+Such updates do not grant the Licensee any rights to the underlying mechanisms beyond execution as provided.
+
+
+
+Enforcement
+
+Any attempt to violate, circumvent, replicate, approximate, analyze, or interfere with any SSL subsystem or its adaptive enforcement logic constitutes immediate license termination.
+
+The Licensor reserves the right to pursue all available legal remedies, including injunctive relief and damages.
 

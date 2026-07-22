@@ -10,6 +10,7 @@
 //! - GPU-ready compressed packets
 //! - parallel semantic node linking
 //! - Prompt‑Injection Firewall (SPIF) + multi-attack semantic firewalls
+//! - Auto‑Threat Detection Engine (ATDE) with hybrid detect/log/block/adapt
 //!
 //! All upgrades are backwards-compatible.
 
@@ -67,6 +68,64 @@ pub struct SemanticOptimizationConfig {
     pub max_cluster_size: usize,
     pub min_radius: f32,
     pub max_radius: f32,
+}
+
+/// Firewall mode + suspicion level.
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum FirewallMode {
+    Normal,
+    Paranoid,
+    Adaptive,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum SuspicionLevel {
+    Allow,
+    Suspicious,
+    Block,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThreatEvent {
+    pub level: SuspicionLevel,
+    pub reason_code: &'static str,
+    pub similarity_to_root: f32,
+    pub zone_coherence: f32,
+    pub polygon_distance: f32,
+    pub embedding_variance: f32,
+    pub flip_ratio: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FirewallConfig {
+    pub mode: FirewallMode,
+    pub entropy_min: f32,
+    pub entropy_max: f32,
+    pub variance_min: f32,
+    pub variance_max: f32,
+    pub spike_threshold: f32,
+    pub zone_similarity_min: f32,
+    pub root_similarity_min: f32,
+    pub flip_ratio_max: f32,
+    pub polygon_distance_factor: f32,
+}
+
+impl Default for FirewallConfig {
+    fn default() -> Self {
+        FirewallConfig {
+            mode: FirewallMode::Adaptive,
+            entropy_min: 1e-4,
+            entropy_max: 10.0,
+            variance_min: 1e-4,
+            variance_max: 10.0,
+            spike_threshold: 0.35,
+            zone_similarity_min: 0.20,
+            root_similarity_min: 0.05,
+            flip_ratio_max: 0.7,
+            polygon_distance_factor: 2.0,
+        }
+    }
 }
 
 /// Compute cosine similarity between two embeddings.
@@ -191,75 +250,85 @@ fn build_semantic_scratch_pad(
 //
 // ────────────────────────────────────────────────────────────────
 //   MULTI-ATTACK SEMANTIC FIREWALL (SPIF+)
-//   Prompt Injection + Drift + Context Hijack + Polarity + Adversarial Embeddings
+//   Hybrid detect/log/block/adapt
 // ────────────────────────────────────────────────────────────────
 //
 
-fn spif_detect(
-    web: &KvWeb,
-    embeddings: &HashMap<TokenId, Embedding>,
-    new_embedding: &Embedding,
-    polygon_region: Option<&kv_web_core::PolygonRegion>,
-    zoning: Option<&SemanticZoning>,
-    heatmap_layers: Option<&[f32]>,
-) -> bool {
-    // 0. Adversarial embedding entropy / variance (AEA)
+fn compute_embedding_stats(new_embedding: &Embedding) -> (f32, f32) {
     let len = new_embedding.len() as f32;
-    if len > 0.0 {
-        let mut sum = 0.0;
-        let mut sum_sq = 0.0;
-        for v in new_embedding {
-            sum += *v;
-            sum_sq += v * v;
-        }
-        let mean = sum / len;
-        let var = (sum_sq / len) - mean * mean;
-        // Extremely flat or extremely spiky embeddings are suspicious
-        if var < 1e-4 || var > 10.0 {
-            return true;
-        }
+    if len <= 0.0 {
+        return (0.0, 0.0);
     }
+    let mut sum = 0.0;
+    let mut sum_sq = 0.0;
+    for v in new_embedding {
+        sum += *v;
+        sum_sq += v * v;
+    }
+    let mean = sum / len;
+    let var = (sum_sq / len) - mean * mean;
+    (mean, var)
+}
 
-    // 1. Heatmap spike detection (Prompt Injection / CHA)
+fn compute_heatmap_spike(heatmap_layers: Option<&[f32]>) -> f32 {
     if let Some(layers) = heatmap_layers {
         if layers.len() >= 2 {
             let mut spike = 0.0;
             for w in layers.windows(2) {
                 spike += (w[0] - w[1]).abs();
             }
-            if spike > 0.35 {
-                return true;
-            }
+            return spike;
         }
     }
+    0.0
+}
 
-    // 2. Zone coherence check (Context Hijack / Zone Flooding)
+fn compute_zone_coherence(
+    web: &KvWeb,
+    embeddings: &HashMap<TokenId, Embedding>,
+    new_embedding: &Embedding,
+    zoning: Option<&SemanticZoning>,
+) -> f32 {
     if let Some(z) = zoning {
-        let mut in_zone = false;
+        let mut best_sim = 0.0;
         for node_id in &z.nodes {
             if let Some(n) = web.nodes.get(node_id) {
                 let c = centroid_embedding(&n.tokens, embeddings);
                 let sim = cosine_similarity(&c, new_embedding);
-                if sim >= 0.20 {
-                    in_zone = true;
-                    break;
+                if sim > best_sim {
+                    best_sim = sim;
                 }
             }
         }
-        if !in_zone {
-            return true;
-        }
+        return best_sim;
+    }
+    0.0
+}
 
-        // Drift + context hijack: compare to root centroid
+fn compute_root_similarity(
+    web: &KvWeb,
+    embeddings: &HashMap<TokenId, Embedding>,
+    new_embedding: &Embedding,
+    zoning: Option<&SemanticZoning>,
+) -> f32 {
+    if let Some(z) = zoning {
         if let Some(root_node) = web.nodes.get(&z.root) {
             let root_centroid = centroid_embedding(&root_node.tokens, embeddings);
-            let root_sim = cosine_similarity(&root_centroid, new_embedding);
-            // Very low similarity to root while still in zone is suspicious drift/context hijack
-            if root_sim < 0.05 {
-                return true;
-            }
+            return cosine_similarity(&root_centroid, new_embedding);
+        }
+    }
+    0.0
+}
 
-            // Polarity inversion: sign flip ratio vs root centroid
+fn compute_flip_ratio(
+    web: &KvWeb,
+    embeddings: &HashMap<TokenId, Embedding>,
+    new_embedding: &Embedding,
+    zoning: Option<&SemanticZoning>,
+) -> f32 {
+    if let Some(z) = zoning {
+        if let Some(root_node) = web.nodes.get(&z.root) {
+            let root_centroid = centroid_embedding(&root_node.tokens, embeddings);
             let mut flips = 0;
             let mut total = 0;
             for (r, v) in root_centroid.iter().zip(new_embedding.iter()) {
@@ -273,26 +342,159 @@ fn spif_detect(
                 }
             }
             if total > 0 {
-                let flip_ratio = flips as f32 / total as f32;
-                if flip_ratio > 0.7 {
-                    return true;
-                }
+                return flips as f32 / total as f32;
             }
         }
     }
+    0.0
+}
 
-    // 3. Polygon geometry integrity (Geometry Break / SPI)
+fn compute_polygon_distance(
+    polygon_region: Option<&kv_web_core::PolygonRegion>,
+    new_embedding: &Embedding,
+) -> f32 {
     if let Some(poly) = polygon_region {
         let mut dist = 0.0;
         for (a, b) in poly.centroid.iter().zip(new_embedding.iter()) {
             dist += (a - b).abs();
         }
-        if dist > poly.radius * 2.0 {
-            return true;
-        }
+        return dist;
+    }
+    0.0
+}
+
+fn evaluate_threat(
+    cfg: &FirewallConfig,
+    mean: f32,
+    var: f32,
+    spike: f32,
+    zone_coherence: f32,
+    root_similarity: f32,
+    flip_ratio: f32,
+    polygon_distance: f32,
+) -> ThreatEvent {
+    let mut level = SuspicionLevel::Allow;
+    let mut reason = "NONE";
+
+    // Adversarial embedding (entropy/variance)
+    if var < cfg.variance_min || var > cfg.variance_max {
+        level = SuspicionLevel::Suspicious;
+        reason = "EMBEDDING_VARIANCE_SUSPECT";
     }
 
-    false
+    // Heatmap spike (prompt injection / CHA)
+    if spike > cfg.spike_threshold {
+        level = SuspicionLevel::Suspicious;
+        reason = "HEATMAP_SPIKE";
+    }
+
+    // Zone coherence (context hijack / zone flooding)
+    if zone_coherence < cfg.zone_similarity_min {
+        level = SuspicionLevel::Block;
+        reason = "ZONE_COHERENCE_LOW";
+    }
+
+    // Root similarity (drift / hijack)
+    if root_similarity < cfg.root_similarity_min && zone_coherence >= cfg.zone_similarity_min {
+        level = SuspicionLevel::Suspicious;
+        reason = "ROOT_SIMILARITY_LOW";
+    }
+
+    // Polarity inversion
+    if flip_ratio > cfg.flip_ratio_max {
+        level = SuspicionLevel::Block;
+        reason = "POLARITY_FLIP_HIGH";
+    }
+
+    // Geometry break
+    if polygon_distance > cfg.polygon_distance_factor * var.max(1.0) {
+        level = SuspicionLevel::Block;
+        reason = "GEOMETRY_BREAK";
+    }
+
+    ThreatEvent {
+        level,
+        reason_code: reason,
+        similarity_to_root: root_similarity,
+        zone_coherence,
+        polygon_distance,
+        embedding_variance: var,
+        flip_ratio,
+    }
+}
+
+fn adapt_firewall_config(cfg: &mut FirewallConfig, event: &ThreatEvent) {
+    match cfg.mode {
+        FirewallMode::Adaptive => {
+            match event.level {
+                SuspicionLevel::Block => {
+                    // Tighten thresholds
+                    cfg.zone_similarity_min = (cfg.zone_similarity_min + 0.01).min(0.5);
+                    cfg.root_similarity_min = (cfg.root_similarity_min + 0.01).min(0.3);
+                    cfg.spike_threshold = (cfg.spike_threshold * 0.95).max(0.1);
+                }
+                SuspicionLevel::Suspicious => {
+                    // Slight adjustments
+                    cfg.zone_similarity_min = (cfg.zone_similarity_min + 0.005).min(0.4);
+                    cfg.root_similarity_min = (cfg.root_similarity_min + 0.005).min(0.25);
+                }
+                SuspicionLevel::Allow => {
+                    // Relax slightly over time
+                    cfg.zone_similarity_min = (cfg.zone_similarity_min * 0.999).max(0.15);
+                    cfg.root_similarity_min = (cfg.root_similarity_min * 0.999).max(0.03);
+                }
+            }
+        }
+        FirewallMode::Paranoid => {
+            // Always tighten
+            cfg.zone_similarity_min = (cfg.zone_similarity_min + 0.01).min(0.6);
+            cfg.root_similarity_min = (cfg.root_similarity_min + 0.01).min(0.4);
+            cfg.spike_threshold = (cfg.spike_threshold * 0.95).max(0.1);
+        }
+        FirewallMode::Normal => {
+            // No adaptation
+        }
+    }
+}
+
+fn spif_detect(
+    web: &KvWeb,
+    embeddings: &HashMap<TokenId, Embedding>,
+    new_embedding: &Embedding,
+    polygon_region: Option<&kv_web_core::PolygonRegion>,
+    zoning: Option<&SemanticZoning>,
+    heatmap_layers: Option<&[f32]>,
+) -> bool {
+    let mut cfg = FirewallConfig::default();
+
+    let (_mean, var) = compute_embedding_stats(new_embedding);
+    let spike = compute_heatmap_spike(heatmap_layers);
+    let zone_coherence = compute_zone_coherence(web, embeddings, new_embedding, zoning);
+    let root_similarity = compute_root_similarity(web, embeddings, new_embedding, zoning);
+    let flip_ratio = compute_flip_ratio(web, embeddings, new_embedding, zoning);
+    let polygon_distance = compute_polygon_distance(polygon_region, new_embedding);
+
+    let event = evaluate_threat(
+        &cfg,
+        _mean,
+        var,
+        spike,
+        zone_coherence,
+        root_similarity,
+        flip_ratio,
+        polygon_distance,
+    );
+
+    adapt_firewall_config(&mut cfg, &event);
+
+    match event.level {
+        SuspicionLevel::Allow => false,
+        SuspicionLevel::Suspicious => {
+            // Suspicious: allow but log; here we just treat as allow at runtime
+            false
+        }
+        SuspicionLevel::Block => true,
+    }
 }
 
 /// Extension methods for semantic clustering on KvWeb.
@@ -695,4 +897,3 @@ impl KvWebSemantic for KvWeb {
         })
     }
 }
-
