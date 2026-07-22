@@ -9,6 +9,7 @@
 //! - semantic zoning + indexing
 //! - GPU-ready compressed packets
 //! - parallel semantic node linking
+//! - Prompt‑Injection Firewall (SPIF) + multi-attack semantic firewalls
 //!
 //! All upgrades are backwards-compatible.
 
@@ -21,7 +22,6 @@ pub type Embedding = Vec<f32>;
 
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PolygonId(pub u32);
-
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SemanticPolygon {
@@ -188,6 +188,113 @@ fn build_semantic_scratch_pad(
     SemanticScratchPad { layer_a, layer_b }
 }
 
+//
+// ────────────────────────────────────────────────────────────────
+//   MULTI-ATTACK SEMANTIC FIREWALL (SPIF+)
+//   Prompt Injection + Drift + Context Hijack + Polarity + Adversarial Embeddings
+// ────────────────────────────────────────────────────────────────
+//
+
+fn spif_detect(
+    web: &KvWeb,
+    embeddings: &HashMap<TokenId, Embedding>,
+    new_embedding: &Embedding,
+    polygon_region: Option<&kv_web_core::PolygonRegion>,
+    zoning: Option<&SemanticZoning>,
+    heatmap_layers: Option<&[f32]>,
+) -> bool {
+    // 0. Adversarial embedding entropy / variance (AEA)
+    let len = new_embedding.len() as f32;
+    if len > 0.0 {
+        let mut sum = 0.0;
+        let mut sum_sq = 0.0;
+        for v in new_embedding {
+            sum += *v;
+            sum_sq += v * v;
+        }
+        let mean = sum / len;
+        let var = (sum_sq / len) - mean * mean;
+        // Extremely flat or extremely spiky embeddings are suspicious
+        if var < 1e-4 || var > 10.0 {
+            return true;
+        }
+    }
+
+    // 1. Heatmap spike detection (Prompt Injection / CHA)
+    if let Some(layers) = heatmap_layers {
+        if layers.len() >= 2 {
+            let mut spike = 0.0;
+            for w in layers.windows(2) {
+                spike += (w[0] - w[1]).abs();
+            }
+            if spike > 0.35 {
+                return true;
+            }
+        }
+    }
+
+    // 2. Zone coherence check (Context Hijack / Zone Flooding)
+    if let Some(z) = zoning {
+        let mut in_zone = false;
+        for node_id in &z.nodes {
+            if let Some(n) = web.nodes.get(node_id) {
+                let c = centroid_embedding(&n.tokens, embeddings);
+                let sim = cosine_similarity(&c, new_embedding);
+                if sim >= 0.20 {
+                    in_zone = true;
+                    break;
+                }
+            }
+        }
+        if !in_zone {
+            return true;
+        }
+
+        // Drift + context hijack: compare to root centroid
+        if let Some(root_node) = web.nodes.get(&z.root) {
+            let root_centroid = centroid_embedding(&root_node.tokens, embeddings);
+            let root_sim = cosine_similarity(&root_centroid, new_embedding);
+            // Very low similarity to root while still in zone is suspicious drift/context hijack
+            if root_sim < 0.05 {
+                return true;
+            }
+
+            // Polarity inversion: sign flip ratio vs root centroid
+            let mut flips = 0;
+            let mut total = 0;
+            for (r, v) in root_centroid.iter().zip(new_embedding.iter()) {
+                if *r != 0.0 && *v != 0.0 {
+                    let rs = r.is_sign_negative();
+                    let vs = v.is_sign_negative();
+                    if rs != vs {
+                        flips += 1;
+                    }
+                    total += 1;
+                }
+            }
+            if total > 0 {
+                let flip_ratio = flips as f32 / total as f32;
+                if flip_ratio > 0.7 {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // 3. Polygon geometry integrity (Geometry Break / SPI)
+    if let Some(poly) = polygon_region {
+        let mut dist = 0.0;
+        for (a, b) in poly.centroid.iter().zip(new_embedding.iter()) {
+            dist += (a - b).abs();
+        }
+        if dist > poly.radius * 2.0 {
+            return true;
+        }
+    }
+
+    false
+}
+
 /// Extension methods for semantic clustering on KvWeb.
 pub trait KvWebSemantic {
     fn cluster_tokens_parallel(
@@ -243,11 +350,16 @@ impl KvWebSemantic for KvWeb {
 
         let tokens: Vec<TokenId> = embeddings.keys().cloned().collect();
 
-        // Compute centroid similarity in parallel
         let mut clusters: Vec<Vec<TokenId>> = Vec::new();
 
         for token in tokens {
             let emb = &embeddings[&token];
+
+            // Multi-attack firewall on raw token embedding
+            if spif_detect(self, embeddings, emb, None, None, None) {
+                continue;
+            }
+
             let mut placed = false;
 
             for cluster in &mut clusters {
@@ -301,6 +413,11 @@ impl KvWebSemantic for KvWeb {
 
                 let a_centroid = centroid_embedding(&a_node.tokens, embeddings);
 
+                // Firewall on node centroid
+                if spif_detect(self, embeddings, &a_centroid, a_node.polygon.as_ref(), None, None) {
+                    return edges;
+                }
+
                 for b_id in node_ids.iter().skip(i + 1) {
                     let b_node = match self.nodes.get(b_id) {
                         Some(n) => n,
@@ -308,6 +425,11 @@ impl KvWebSemantic for KvWeb {
                     };
 
                     let b_centroid = centroid_embedding(&b_node.tokens, embeddings);
+
+                    // Firewall on other node centroid
+                    if spif_detect(self, embeddings, &b_centroid, b_node.polygon.as_ref(), None, None) {
+                        continue;
+                    }
 
                     let base_sim = cosine_similarity(&a_centroid, &b_centroid);
                     let sim = polygon_similarity_bias(self, *a_id, *b_id, base_sim);
@@ -345,6 +467,11 @@ impl KvWebSemantic for KvWeb {
 
             let centroid = centroid_embedding(&node.tokens, embeddings);
             if centroid.is_empty() {
+                continue;
+            }
+
+            // Firewall on polygon centroid candidate
+            if spif_detect(self, embeddings, &centroid, node.polygon.as_ref(), None, None) {
                 continue;
             }
 
@@ -421,6 +548,11 @@ impl KvWebSemantic for KvWeb {
             let centroid = centroid_embedding(&node.tokens, embeddings);
             let base = cosine_similarity(&root_centroid, &centroid);
             let sim = polygon_similarity_bias(self, root, *id, base);
+
+            // Firewall on zoning candidate
+            if spif_detect(self, embeddings, &centroid, node.polygon.as_ref(), None, None) {
+                continue;
+            }
 
             if sim >= threshold {
                 nodes.push(*id);

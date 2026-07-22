@@ -1562,3 +1562,49 @@ Evaluator’s only path to continued use is purchasing a commercial license.
 
 
 
+📘 LICENSE ADDENDUM — Semantic Security Layer (SSL) Protection Clause
+
+Semantic Security Layer (SSL) Protection.  
+
+The Semantic Security Layer (including but not limited to the Prompt‑Injection Firewall (SPIF), Drift‑Delta Firewall (DDF), Context‑Hijack Firewall (CHF), Polarity‑Inversion Firewall (PIF), Adversarial Embedding Firewall (AEF), Zone‑Flooding Firewall (ZFF), Geometry‑Integrity Firewall (GIF), and any related semantic‑security mechanisms, algorithms, heuristics, or detection logic) is proprietary technology owned exclusively by the Licensor.
+
+
+
+The Licensee is expressly prohibited from:
+
+
+
+Reverse‑engineering, decompiling, disassembling, analyzing, or attempting to derive the internal logic, structure, heuristics, or decision‑making criteria of any SSL component.
+
+
+
+Replicating, re‑implementing, simulating, approximating, or creating functionally‑equivalent systems, whether in whole or in part, regardless of method, medium, or abstraction level.
+
+
+
+Using SSL outputs, behaviors, logs, or detection patterns to infer, reconstruct, or model any portion of the SSL’s internal mechanisms.
+
+
+
+Training, fine‑tuning, or evaluating any machine learning model using SSL outputs, decisions, or behaviors for the purpose of reproducing or approximating SSL functionality.
+
+
+
+Developing derivative works based on the SSL or any of its subcomponents, including semantic‑geometry defenses, centroid‑based detection, polygonal KV‑security logic, or multi‑layer heatmap anomaly detection.
+
+
+
+Bypassing, disabling, modifying, or interfering with any SSL subsystem or its enforcement logic.
+
+
+
+The SSL and all related firewalls constitute core security infrastructure.
+
+No rights are granted to the Licensee beyond the limited right to execute the SSL solely as integrated within the licensed software.
+
+All other rights are reserved.
+
+
+
+Any attempt to violate, circumvent, or analyze the SSL constitutes immediate license termination, and the Licensor reserves the right to pursue all available legal remedies, including injunctive relief and damages.
+
