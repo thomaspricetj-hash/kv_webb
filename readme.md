@@ -429,3 +429,10 @@ KV‑Webb now includes the Revolving‑Door + False Door Firewall, a MAX‑tier 
 The new False Door Deception Layer adds an additional shield by generating synthetic, geometry‑valid decoy entry points that appear legitimate to adversarial probes but lead nowhere internally. These false doors absorb malicious embeddings, disrupt fingerprinting attempts, and feed additional adversarial signatures back into the revolving‑door system. As the firewall rotates phases, false doors rotate with it, creating a constantly shifting deception field that attackers cannot map or exploit.
 
 Together, these upgrades make KV‑Webb’s security layer fully non‑stationary, self‑hardening, and misdirection‑driven, providing enterprise‑grade protection against prompt injection, adversarial embeddings, semantic hijacking, zone flooding, and geometry‑breaking attacks. The firewall evolves with every threat, ensuring KV‑Webb remains one step ahead of any intrusion attempt.
+
+🔒 License & Forking Notice
+Before you fork, clone, modify, or test anything in this repository, make sure you’ve actually read the LICENSE file. This project is released under a strict evaluation‑only license, which means you’re welcome to look, test, and explore — but you are not granted rights to use, modify, redistribute, or build derivative works from this code.
+
+Forking this repo does not give you permission to use it in your own projects, products, or internal systems. Any changes you make in a fork remain fully covered by the same license. If you want to use this design beyond evaluation, you’ll need to obtain a proper license or commercial agreement.
+
+I want you satisfied, not standing there with your pants down because you skipped the fine print — so read the LICENSE first.
