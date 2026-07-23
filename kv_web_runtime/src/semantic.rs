@@ -26,6 +26,7 @@
 //! - Zone‑aware reverse masks
 //! - Adversarial signature clustering
 //! - Reverse‑weighted firewall threshold adaptation
+//! - Revolving‑door adaptive threshold cycling (MAX‑tier)
 //!
 //! All upgrades are backwards-compatible.
 
@@ -296,6 +297,31 @@ impl FirewallHistory {
     }
 }
 
+/// MAX-tier: revolving-door firewall phase state.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RevolvingDoorState {
+    pub door_phase: u8,
+    pub door_cycle: u64,
+    pub door_seed: f32,
+}
+
+impl RevolvingDoorState {
+    pub fn new() -> Self {
+        Self {
+            door_phase: 0,
+            door_cycle: 0,
+            door_seed: 1.0,
+        }
+    }
+
+    pub fn advance(&mut self) {
+        self.door_phase = (self.door_phase + 1) % 4;
+        self.door_cycle = self.door_cycle.wrapping_add(1);
+        // Simple bounded seed drift to avoid static behavior
+        self.door_seed = (self.door_seed * 1.013).fract().max(0.1);
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FirewallConfig {
     pub mode: FirewallMode,
@@ -310,6 +336,8 @@ pub struct FirewallConfig {
     pub polygon_distance_factor: f32,
     /// MAX-tier: rolling adversarial history for reverse hardening.
     pub history: FirewallHistory,
+    /// MAX-tier: revolving-door adaptive phase state.
+    pub revolving: RevolvingDoorState,
 }
 
 impl Default for FirewallConfig {
@@ -326,8 +354,101 @@ impl Default for FirewallConfig {
             flip_ratio_max: 0.7,
             polygon_distance_factor: 2.0,
             history: FirewallHistory::new(256),
+            revolving: RevolvingDoorState::new(),
         }
     }
+}
+
+/// MAX-tier: revolving-door threshold cycling.
+/// This keeps the firewall non-stationary so attackers cannot fingerprint a stable configuration.
+fn revolving_door_step(cfg: &mut FirewallConfig) {
+    // Advance phase every call; bounded, deterministic mutation.
+    cfg.revolving.advance();
+
+    let phase = cfg.revolving.door_phase;
+    let seed = cfg.revolving.door_seed;
+
+    // Use phase + seed to apply small, bounded rotations to thresholds.
+    match phase {
+        0 => {
+            // Slightly tighten zone + root similarity, relax spike a bit.
+            cfg.zone_similarity_min =
+                (cfg.zone_similarity_min + 0.005 * seed).min(0.6);
+            cfg.root_similarity_min =
+                (cfg.root_similarity_min + 0.005 * seed).min(0.4);
+            cfg.spike_threshold =
+                (cfg.spike_threshold * (1.0 + 0.01 * seed)).min(0.5);
+        }
+        1 => {
+            // Slightly tighten flip ratio and geometry factor.
+            cfg.flip_ratio_max =
+                (cfg.flip_ratio_max * (1.0 - 0.02 * seed)).max(0.3);
+            cfg.polygon_distance_factor =
+                (cfg.polygon_distance_factor * (1.0 + 0.02 * seed)).min(4.0);
+        }
+        2 => {
+            // Slightly adjust variance bounds.
+            cfg.variance_min =
+                (cfg.variance_min * (1.0 + 0.01 * seed)).min(0.5);
+            cfg.variance_max =
+                (cfg.variance_max * (1.0 - 0.01 * seed)).max(1.0);
+        }
+        3 => {
+            // Use adversarial clusters to bias thresholds non-linearly.
+            let clusters = cfg.history.clusters(4);
+            if !clusters.is_empty() {
+                // Take strongest cluster centroid as a bias vector.
+                let strongest = clusters
+                    .iter()
+                    .max_by(|a, b| a.count.cmp(&b.count))
+                    .unwrap();
+                let v = &strongest.centroid;
+                if v.len() >= 6 {
+                    let var = v[0];
+                    let spike = v[1];
+                    let zone = v[2];
+                    let root = v[3];
+                    let flip = v[4];
+                    let poly = v[5];
+
+                    if zone < cfg.zone_similarity_min {
+                        cfg.zone_similarity_min =
+                            (cfg.zone_similarity_min + 0.01 * seed).min(0.6);
+                    }
+                    if root < cfg.root_similarity_min {
+                        cfg.root_similarity_min =
+                            (cfg.root_similarity_min + 0.01 * seed).min(0.4);
+                    }
+                    if spike > cfg.spike_threshold {
+                        cfg.spike_threshold =
+                            (cfg.spike_threshold * (1.0 - 0.02 * seed)).max(0.1);
+                    }
+                    if flip > cfg.flip_ratio_max {
+                        cfg.flip_ratio_max =
+                            (cfg.flip_ratio_max * (1.0 - 0.02 * seed)).max(0.3);
+                    }
+                    if poly > cfg.polygon_distance_factor {
+                        cfg.polygon_distance_factor =
+                            (cfg.polygon_distance_factor * (1.0 + 0.02 * seed)).min(4.0);
+                    }
+                    if var > cfg.variance_max {
+                        cfg.variance_max =
+                            (cfg.variance_max * (1.0 - 0.02 * seed)).max(1.0);
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+
+    // Final safety clamp to keep thresholds within sane bounds.
+    cfg.zone_similarity_min = cfg.zone_similarity_min.clamp(0.15, 0.6);
+    cfg.root_similarity_min = cfg.root_similarity_min.clamp(0.03, 0.4);
+    cfg.spike_threshold = cfg.spike_threshold.clamp(0.1, 0.6);
+    cfg.flip_ratio_max = cfg.flip_ratio_max.clamp(0.3, 0.9);
+    cfg.polygon_distance_factor = cfg.polygon_distance_factor.clamp(1.0, 4.0);
+    cfg.variance_min = cfg.variance_min.clamp(1e-4, 0.5);
+    cfg.variance_max = cfg.variance_max.clamp(1.0, 10.0);
 }
 
 /// Compute cosine similarity between two embeddings.
@@ -451,7 +572,7 @@ fn build_semantic_scratch_pad(
 
 // ────────────────────────────────────────────────────────────────
 //   MULTI-ATTACK SEMANTIC FIREWALL (SPIF+)
-//   Hybrid detect/log/block/adapt + reverse hardening
+//   Hybrid detect/log/block/adapt + reverse hardening + revolving door
 // ────────────────────────────────────────────────────────────────
 //
 
@@ -779,6 +900,9 @@ fn spif_detect(
     if let Some(zone_mask) = cfg.history.zone_reverse_mask(cfg.zone_similarity_min) {
         apply_reverse_mask(&mut cfg, &zone_mask);
     }
+
+    // MAX-tier: revolving-door threshold cycling to prevent fingerprinting.
+    revolving_door_step(&mut cfg);
 
     adapt_firewall_config(&mut cfg, &event);
 
@@ -1400,4 +1524,3 @@ impl KvWebSemanticRoundabout for KvWeb {
         }
     }
 }
-

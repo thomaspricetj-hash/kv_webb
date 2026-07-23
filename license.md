@@ -3007,3 +3007,7 @@ heatmap auto‑optimization
 
 requires a paid commercial license.
 
+
+
+Revolving‑Door Firewall Protection Clause (MAX‑Tier Upgrade)
+

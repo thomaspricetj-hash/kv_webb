@@ -650,3 +650,11 @@ GPU‑accelerated reasoning
 
 Stable long‑range coherence under load
 
+
+
+Revolving‑Door Firewall Upgrade — MAX‑Tier Security Enhancement  
+
+KV‑Webb now includes a fully autonomous Revolving‑Door Firewall, a next‑generation security layer designed to eliminate the core weakness of traditional firewalls: predictability. Instead of relying on static rules or fixed thresholds, the firewall continuously rotates its internal defense phases, mutates its threshold boundaries, and re‑weights its semantic geometry checks. Every attack—successful or attempted—feeds into a rolling adversarial history that dynamically reshapes the firewall’s behavior. This creates a non‑stationary, self‑hardening security perimeter that cannot be fingerprinted, mapped, or reverse‑engineered. With this upgrade, KV‑Webb ensures that intrusion attempts face a defense system that is always shifting, always adapting, and always one step ahead.
+
+
+

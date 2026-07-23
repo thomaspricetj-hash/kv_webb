@@ -422,3 +422,6 @@ protects itself with SSL + RAH
 
 KV‑Webb is no longer a KV‑cache replacement —
 it is synthetic cognitive infrastructure.
+
+🔒 Revolving‑Door Firewall (MAX‑Tier Security Upgrade)
+KV‑Webb now includes the Revolving‑Door Firewall, a MAX‑tier security enhancement designed to eliminate the predictability of traditional firewalls. Instead of relying on fixed thresholds or static rules, the firewall continuously rotates its internal defense phases, shifts semantic‑geometry weighting, and adapts its thresholds using live adversarial history. Every attack attempt feeds into a rolling signature buffer that reshapes the firewall’s behavior, ensuring the system cannot be fingerprinted, mapped, or reverse‑engineered. This upgrade makes KV‑Webb’s security layer fully non‑stationary and self‑hardening, providing enterprise‑grade protection against prompt injection, adversarial embeddings, semantic hijacking, and geometry‑breaking attacks.
