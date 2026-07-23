@@ -2326,5 +2326,14 @@ requires a paid commercial license.
 
 Evaluator’s only path to continued use is purchasing a commercial license.
 
+KV‑Webb is licensed under a commercial tiered model.
+Professional licenses start at $95,000/year.
+Enterprise licenses start at $1.2M/year.
+Strategic licenses start at $5M/year.
+Full exclusive acquisition ranges from $30M to $150M.
 
+KV‑Webb’s architecture is protected under a restrictive Evaluation License.
+No derivative works, re‑implementations, approximations, or functional equivalents are permitted.
+
+Companies wishing to use KV‑Webb in production must purchase a commercial license.
 
