@@ -27,6 +27,7 @@
 //! - Adversarial signature clustering
 //! - Reverse‑weighted firewall threshold adaptation
 //! - Revolving‑door adaptive threshold cycling (MAX‑tier)
+//! - False Door Deception Layer (MAX‑tier)
 //!
 //! All upgrades are backwards-compatible.
 
@@ -225,7 +226,6 @@ impl FirewallHistory {
             return Vec::new();
         }
 
-        // Simple online clustering: group by rough similarity of zone_coherence/root_similarity.
         let mut clusters: Vec<AdversarialCluster> = Vec::new();
 
         for sig in &self.signatures {
@@ -317,9 +317,79 @@ impl RevolvingDoorState {
     pub fn advance(&mut self) {
         self.door_phase = (self.door_phase + 1) % 4;
         self.door_cycle = self.door_cycle.wrapping_add(1);
-        // Simple bounded seed drift to avoid static behavior
         self.door_seed = (self.door_seed * 1.013).fract().max(0.1);
     }
+}
+
+// ────────────────────────────────────────────────────────────────
+//   FALSE DOOR DECEPTION LAYER (MAX‑TIER)
+// ────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FalseDoor {
+    pub door_id: u32,
+    pub bait_vector: Vec<f32>,
+    pub phase: u8,
+    pub decay: f32,
+}
+
+impl FalseDoor {
+    pub fn new(door_id: u32, bait_vector: Vec<f32>, phase: u8) -> Self {
+        Self {
+            door_id,
+            bait_vector,
+            phase,
+            decay: 1.0,
+        }
+    }
+
+    pub fn update_phase(&mut self, new_phase: u8, seed: f32) {
+        self.phase = new_phase;
+        self.decay = (self.decay * (1.0 - 0.01 * seed)).max(0.05);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FalseDoorLayer {
+    pub doors: Vec<FalseDoor>,
+    pub next_id: u32,
+}
+
+impl FalseDoorLayer {
+    pub fn new() -> Self {
+        Self {
+            doors: Vec::new(),
+            next_id: 1,
+        }
+    }
+
+    pub fn spawn_false_door(&mut self, centroid: &Embedding, phase: u8) {
+        let mut bait = centroid.clone();
+        for v in &mut bait {
+            *v *= 0.75;
+        }
+        self.doors.push(FalseDoor::new(self.next_id, bait, phase));
+        self.next_id += 1;
+    }
+
+    pub fn rotate_doors(&mut self, phase: u8, seed: f32) {
+        for d in &mut self.doors {
+            d.update_phase(phase, seed);
+        }
+    }
+}
+
+fn false_door_triggered(
+    false_doors: &FalseDoorLayer,
+    new_embedding: &Embedding,
+) -> bool {
+    for door in &false_doors.doors {
+        let sim = cosine_similarity(&door.bait_vector, new_embedding);
+        if sim >= 0.92 * door.decay {
+            return true;
+        }
+    }
+    false
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -334,10 +404,9 @@ pub struct FirewallConfig {
     pub root_similarity_min: f32,
     pub flip_ratio_max: f32,
     pub polygon_distance_factor: f32,
-    /// MAX-tier: rolling adversarial history for reverse hardening.
     pub history: FirewallHistory,
-    /// MAX-tier: revolving-door adaptive phase state.
     pub revolving: RevolvingDoorState,
+    pub false_doors: FalseDoorLayer,
 }
 
 impl Default for FirewallConfig {
@@ -355,23 +424,23 @@ impl Default for FirewallConfig {
             polygon_distance_factor: 2.0,
             history: FirewallHistory::new(256),
             revolving: RevolvingDoorState::new(),
+            false_doors: FalseDoorLayer::new(),
         }
     }
 }
 
 /// MAX-tier: revolving-door threshold cycling.
-/// This keeps the firewall non-stationary so attackers cannot fingerprint a stable configuration.
 fn revolving_door_step(cfg: &mut FirewallConfig) {
-    // Advance phase every call; bounded, deterministic mutation.
     cfg.revolving.advance();
 
     let phase = cfg.revolving.door_phase;
     let seed = cfg.revolving.door_seed;
 
-    // Use phase + seed to apply small, bounded rotations to thresholds.
+    // Rotate false doors with phase
+    cfg.false_doors.rotate_doors(phase, seed);
+
     match phase {
         0 => {
-            // Slightly tighten zone + root similarity, relax spike a bit.
             cfg.zone_similarity_min =
                 (cfg.zone_similarity_min + 0.005 * seed).min(0.6);
             cfg.root_similarity_min =
@@ -380,24 +449,20 @@ fn revolving_door_step(cfg: &mut FirewallConfig) {
                 (cfg.spike_threshold * (1.0 + 0.01 * seed)).min(0.5);
         }
         1 => {
-            // Slightly tighten flip ratio and geometry factor.
             cfg.flip_ratio_max =
                 (cfg.flip_ratio_max * (1.0 - 0.02 * seed)).max(0.3);
             cfg.polygon_distance_factor =
                 (cfg.polygon_distance_factor * (1.0 + 0.02 * seed)).min(4.0);
         }
         2 => {
-            // Slightly adjust variance bounds.
             cfg.variance_min =
                 (cfg.variance_min * (1.0 + 0.01 * seed)).min(0.5);
             cfg.variance_max =
                 (cfg.variance_max * (1.0 - 0.01 * seed)).max(1.0);
         }
         3 => {
-            // Use adversarial clusters to bias thresholds non-linearly.
             let clusters = cfg.history.clusters(4);
             if !clusters.is_empty() {
-                // Take strongest cluster centroid as a bias vector.
                 let strongest = clusters
                     .iter()
                     .max_by(|a, b| a.count.cmp(&b.count))
@@ -441,7 +506,6 @@ fn revolving_door_step(cfg: &mut FirewallConfig) {
         _ => {}
     }
 
-    // Final safety clamp to keep thresholds within sane bounds.
     cfg.zone_similarity_min = cfg.zone_similarity_min.clamp(0.15, 0.6);
     cfg.root_similarity_min = cfg.root_similarity_min.clamp(0.03, 0.4);
     cfg.spike_threshold = cfg.spike_threshold.clamp(0.1, 0.6);
@@ -572,9 +636,7 @@ fn build_semantic_scratch_pad(
 
 // ────────────────────────────────────────────────────────────────
 //   MULTI-ATTACK SEMANTIC FIREWALL (SPIF+)
-//   Hybrid detect/log/block/adapt + reverse hardening + revolving door
 // ────────────────────────────────────────────────────────────────
-//
 
 fn compute_embedding_stats(new_embedding: &Embedding) -> (f32, f32) {
     let len = new_embedding.len() as f32;
@@ -698,37 +760,31 @@ fn evaluate_threat(
     let mut level = SuspicionLevel::Allow;
     let mut reason = "NONE";
 
-    // Adversarial embedding (entropy/variance)
     if var < cfg.variance_min || var > cfg.variance_max {
         level = SuspicionLevel::Suspicious;
         reason = "EMBEDDING_VARIANCE_SUSPECT";
     }
 
-    // Heatmap spike (prompt injection / CHA)
     if spike > cfg.spike_threshold {
         level = SuspicionLevel::Suspicious;
         reason = "HEATMAP_SPIKE";
     }
 
-    // Zone coherence (context hijack / zone flooding)
     if zone_coherence < cfg.zone_similarity_min {
         level = SuspicionLevel::Block;
         reason = "ZONE_COHERENCE_LOW";
     }
 
-    // Root similarity (drift / hijack)
     if root_similarity < cfg.root_similarity_min && zone_coherence >= cfg.zone_similarity_min {
         level = SuspicionLevel::Suspicious;
         reason = "ROOT_SIMILARITY_LOW";
     }
 
-    // Polarity inversion
     if flip_ratio > cfg.flip_ratio_max {
         level = SuspicionLevel::Block;
         reason = "POLARITY_FLIP_HIGH";
     }
 
-    // Geometry break
     if polygon_distance > cfg.polygon_distance_factor * var.max(1.0) {
         level = SuspicionLevel::Block;
         reason = "GEOMETRY_BREAK";
@@ -750,36 +806,29 @@ fn adapt_firewall_config(cfg: &mut FirewallConfig, event: &ThreatEvent) {
         FirewallMode::Adaptive => {
             match event.level {
                 SuspicionLevel::Block => {
-                    // Tighten thresholds
                     cfg.zone_similarity_min = (cfg.zone_similarity_min + 0.01).min(0.5);
                     cfg.root_similarity_min = (cfg.root_similarity_min + 0.01).min(0.3);
                     cfg.spike_threshold = (cfg.spike_threshold * 0.95).max(0.1);
                 }
                 SuspicionLevel::Suspicious => {
-                    // Slight adjustments
                     cfg.zone_similarity_min = (cfg.zone_similarity_min + 0.005).min(0.4);
                     cfg.root_similarity_min = (cfg.root_similarity_min + 0.005).min(0.25);
                 }
                 SuspicionLevel::Allow => {
-                    // Relax slightly over time
                     cfg.zone_similarity_min = (cfg.zone_similarity_min * 0.999).max(0.15);
                     cfg.root_similarity_min = (cfg.root_similarity_min * 0.999).max(0.03);
                 }
             }
         }
         FirewallMode::Paranoid => {
-            // Always tighten
             cfg.zone_similarity_min = (cfg.zone_similarity_min + 0.01).min(0.6);
             cfg.root_similarity_min = (cfg.root_similarity_min + 0.01).min(0.4);
             cfg.spike_threshold = (cfg.spike_threshold * 0.95).max(0.1);
         }
-        FirewallMode::Normal => {
-            // No adaptation
-        }
+        FirewallMode::Normal => {}
     }
 }
 
-/// MAX-tier: record adversarial signature into history for reverse hardening.
 fn record_attack_signature(
     cfg: &mut FirewallConfig,
     var: f32,
@@ -800,17 +849,14 @@ fn record_attack_signature(
     cfg.history.record(sig);
 }
 
-/// Optional: expose reverse mask for higher-tier modules.
 pub fn firewall_reverse_mask(cfg: &FirewallConfig) -> Option<Vec<f32>> {
     cfg.history.reverse_mask()
 }
 
-/// Optional: expose zone-aware reverse mask.
 pub fn firewall_zone_reverse_mask(cfg: &FirewallConfig, zone_threshold: f32) -> Option<Vec<f32>> {
     cfg.history.zone_reverse_mask(zone_threshold)
 }
 
-/// Optional: expose adversarial clusters.
 pub fn firewall_adversarial_clusters(
     cfg: &FirewallConfig,
     max_clusters: usize,
@@ -818,7 +864,6 @@ pub fn firewall_adversarial_clusters(
     cfg.history.clusters(max_clusters)
 }
 
-/// MAX-tier: apply reverse mask to bias firewall thresholds.
 fn apply_reverse_mask(cfg: &mut FirewallConfig, mask: &[f32]) {
     if mask.len() < 6 {
         return;
@@ -831,7 +876,6 @@ fn apply_reverse_mask(cfg: &mut FirewallConfig, mask: &[f32]) {
     let flip = mask[4];
     let poly = mask[5];
 
-    // Use adversarial pattern to harden thresholds.
     if var > cfg.variance_max {
         cfg.variance_max = (cfg.variance_max * 0.9).max(1.0);
     }
@@ -862,6 +906,21 @@ fn spif_detect(
 ) -> bool {
     let mut cfg = FirewallConfig::default();
 
+    // False door check first
+    if false_door_triggered(&cfg.false_doors, new_embedding) {
+        let (_, var) = compute_embedding_stats(new_embedding);
+        record_attack_signature(
+            &mut cfg,
+            var,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        );
+        return true;
+    }
+
     let (mean, var) = compute_embedding_stats(new_embedding);
     let spike = compute_heatmap_spike(heatmap_layers);
     let zone_coherence = compute_zone_coherence(web, embeddings, new_embedding, zoning);
@@ -880,7 +939,6 @@ fn spif_detect(
         polygon_distance,
     );
 
-    // MAX-tier: capture adversarial signature for reverse hardening.
     record_attack_signature(
         &mut cfg,
         var,
@@ -891,27 +949,21 @@ fn spif_detect(
         polygon_distance,
     );
 
-    // MAX-tier: apply global reverse mask.
     if let Some(mask) = cfg.history.reverse_mask() {
         apply_reverse_mask(&mut cfg, &mask);
     }
 
-    // MAX-tier: apply zone-aware reverse mask (focus on low-coherence zones).
     if let Some(zone_mask) = cfg.history.zone_reverse_mask(cfg.zone_similarity_min) {
         apply_reverse_mask(&mut cfg, &zone_mask);
     }
 
-    // MAX-tier: revolving-door threshold cycling to prevent fingerprinting.
     revolving_door_step(&mut cfg);
 
     adapt_firewall_config(&mut cfg, &event);
 
     match event.level {
         SuspicionLevel::Allow => false,
-        SuspicionLevel::Suspicious => {
-            // Suspicious: allow but log; here we just treat as allow at runtime
-            false
-        }
+        SuspicionLevel::Suspicious => false,
         SuspicionLevel::Block => true,
     }
 }
@@ -962,7 +1014,6 @@ pub trait KvWebSemantic {
 
 impl KvWebSemantic for KvWeb {
 
-    /// Parallel greedy clustering.
     fn cluster_tokens_parallel(
         &mut self,
         embeddings: &HashMap<TokenId, Embedding>,
@@ -970,13 +1021,11 @@ impl KvWebSemantic for KvWeb {
     ) -> Vec<WebNodeId> {
 
         let tokens: Vec<TokenId> = embeddings.keys().cloned().collect();
-
         let mut clusters: Vec<Vec<TokenId>> = Vec::new();
 
         for token in tokens {
             let emb = &embeddings[&token];
 
-            // Multi-attack firewall on raw token embedding
             if spif_detect(self, embeddings, emb, None, None, None) {
                 continue;
             }
@@ -1015,7 +1064,6 @@ impl KvWebSemantic for KvWeb {
         node_ids
     }
 
-    /// Parallel semantic node linking.
     fn link_semantic_nodes_parallel(
         &mut self,
         embeddings: &HashMap<TokenId, Embedding>,
@@ -1034,7 +1082,6 @@ impl KvWebSemantic for KvWeb {
 
                 let a_centroid = centroid_embedding(&a_node.tokens, embeddings);
 
-                // Firewall on node centroid
                 if spif_detect(self, embeddings, &a_centroid, a_node.polygon.as_ref(), None, None) {
                     return edges;
                 }
@@ -1047,7 +1094,6 @@ impl KvWebSemantic for KvWeb {
 
                     let b_centroid = centroid_embedding(&b_node.tokens, embeddings);
 
-                    // Firewall on other node centroid
                     if spif_detect(self, embeddings, &b_centroid, b_node.polygon.as_ref(), None, None) {
                         continue;
                     }
@@ -1069,7 +1115,6 @@ impl KvWebSemantic for KvWeb {
         }
     }
 
-    /// Build polygonal semantic regions.
     fn build_polygonal_semantic_regions(
         &mut self,
         embeddings: &HashMap<TokenId, Embedding>,
@@ -1091,7 +1136,6 @@ impl KvWebSemantic for KvWeb {
                 continue;
             }
 
-            // Firewall on polygon centroid candidate
             if spif_detect(self, embeddings, &centroid, node.polygon.as_ref(), None, None) {
                 continue;
             }
@@ -1150,7 +1194,6 @@ impl KvWebSemantic for KvWeb {
         polygons
     }
 
-    /// Build semantic zoning + scratch pad.
     fn semantic_index_and_zone(
         &mut self,
         embeddings: &HashMap<TokenId, Embedding>,
@@ -1170,7 +1213,6 @@ impl KvWebSemantic for KvWeb {
             let base = cosine_similarity(&root_centroid, &centroid);
             let sim = polygon_similarity_bias(self, root, *id, base);
 
-            // Firewall on zoning candidate
             if spif_detect(self, embeddings, &centroid, node.polygon.as_ref(), None, None) {
                 continue;
             }
@@ -1227,7 +1269,6 @@ impl KvWebSemantic for KvWeb {
         }
     }
 
-    /// Compressed semantic zoning (GPU-ready).
     fn semantic_index_and_zone_compressed(
         &mut self,
         embeddings: &HashMap<TokenId, Embedding>,
@@ -1253,7 +1294,6 @@ impl KvWebSemantic for KvWeb {
         })
     }
 
-    /// Max-tier optimization loop for semantic clustering.
     fn optimize_semantic(
         &mut self,
         embeddings: &HashMap<TokenId, Embedding>,
@@ -1319,9 +1359,7 @@ impl KvWebSemantic for KvWeb {
 
 // ────────────────────────────────────────────────────────────────
 //   SEMANTIC ROUNDABOUT MAX‑TIER UPGRADE
-//   Hub‑based multilayer semantic routing
 // ────────────────────────────────────────────────────────────────
-//
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SemanticPriority {
@@ -1409,7 +1447,6 @@ pub enum SemanticRouteDecision {
     },
 }
 
-/// MAX-tier semantic roundabout hub per root node.
 pub trait KvWebSemanticRoundabout {
     fn route_semantic_packet(
         &mut self,
@@ -1440,7 +1477,6 @@ impl KvWebSemanticRoundabout for KvWeb {
             packet.escalate();
         }
 
-        // Build multilayer exit candidates from zones + scratch pad
         let mut candidates: Vec<SemanticExitCandidate> = Vec::new();
 
         for zone in &zoning.zones {
@@ -1454,7 +1490,6 @@ impl KvWebSemanticRoundabout for KvWeb {
                         continue;
                     }
 
-                    // Firewall on semantic exit centroid
                     if spif_detect(
                         self,
                         embeddings,
@@ -1485,14 +1520,12 @@ impl KvWebSemanticRoundabout for KvWeb {
             }
         }
 
-        // Sort candidates by score descending
         candidates.sort_by(|a, b| {
             b.score
                 .partial_cmp(&a.score)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        // Scratchpad hint: prefer last successful zone if still viable
         let mut chosen: Option<SemanticExitCandidate> = None;
 
         if let Some(hint_zone) = packet.last_exit_zone {

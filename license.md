@@ -3011,3 +3011,19 @@ requires a paid commercial license.
 
 Revolving‑Door Firewall Protection Clause (MAX‑Tier Upgrade)
 
+
+
+📜 License Addendum — MAX‑Tier Security Enhancements
+
+MAX‑Tier Security Addendum (Revolving‑Door Firewall + False Door Deception Layer)  
+
+This software now incorporates advanced security mechanisms including, but not limited to, the Revolving‑Door Firewall, False Door Deception Layer, Reverse‑Adversarial Hardening, semantic‑geometry phase rotation, adversarial signature clustering, and non‑stationary adaptive threshold cycling. These systems collectively form a dynamic, self‑modifying security perimeter designed to resist fingerprinting, reverse‑engineering, replay attacks, semantic hijacking, adversarial embeddings, and geometry‑breaking intrusion attempts.
+
+
+
+All MAX‑tier security components, their underlying algorithms, operational behaviors, adaptive logic, and any derivative works are protected under this license. No party is permitted to analyze, replicate, bypass, disable, or derive competing systems from these mechanisms. Any attempt to probe, map, or reverse‑engineer the adaptive firewall, false‑door constructs, or semantic‑geometry defenses is strictly prohibited.
+
+
+
+All rights to the design, implementation, evolution, and future upgrades of these security systems remain exclusively with the copyright holder. Use of this software constitutes agreement to these terms.
+
