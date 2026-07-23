@@ -1,11 +1,11 @@
-📄 KV‑Webb Runtime 3.4.1 — README (Updated)
-Autonomous Polygonal Memory + Multi‑Layer Heatmaps + Zoning + Hybrid PKM GPU Routing + Semantic Roundabout Routing + SSL Defense Matrix
+📄 KV‑Webb Runtime 3.4.1 — README (Tier‑7 Cognitive Substrate Edition)
+Autonomous Polygonal Memory • Multi‑Layer Heatmaps • Zoning • Hybrid PKM GPU Routing • Semantic Roundabout Routing • SSL + RAH Defense Matrix
+KV‑Webb Runtime 3.4.1 transforms KV‑cache from a passive buffer into a self‑optimizing cognitive substrate.
+Instead of storing raw transformer vectors, KV‑Webb builds a living semantic geometry engine with:
 
-KV‑Webb Runtime 3.4.1 is a fully autonomous, geometric, semantic, multi‑layer cognitive memory engine designed to augment or replace traditional transformer KV‑cache behavior. Instead of storing raw attention vectors, KV‑Webb constructs a living, adaptive, polygonal semantic graph with:
+polygonal semantic regions
 
-semantic nodes
-
-polygonal regions
+multi‑layer heatmaps
 
 drift physics
 
@@ -13,13 +13,13 @@ pruning physics
 
 dynamic webbing
 
-multi‑layer heatmaps
+semantic clustering
 
 zoning segmentation
 
 reversible BitDrop_v2 compression
 
-GPU‑resident Hybrid PKM routing
+Hybrid PKM GPU routing
 
 semantic roundabout routing (NEW)
 
@@ -27,13 +27,14 @@ adaptive GPU daemon scheduling
 
 global optimization scheduling
 
-Semantic Security Layer (SSL) (NEW)
+Semantic Security Layer (SSL) + Reverse‑Adversarial Hardening (RAH) (NEW)
 
-KV‑Webb transforms KV‑cache from a stateless buffer into a self‑optimizing synthetic cognitive substrate.
+KV‑Webb is no longer KV‑cache —
+it is synthetic cognitive infrastructure.
 
 ⭐ New in KV‑Webb Runtime 3.4.1 (Tier‑7 Upgrade)
-Semantic Roundabout Routing (NEW)
-KV‑Webb now includes a full semantic roundabout engine modeled after real‑world traffic systems:
+🔵 1. Semantic Roundabout Routing (NEW)
+A full semantic roundabout engine modeled after real‑world traffic systems:
 
 packets enter a semantic hub
 
@@ -61,18 +62,18 @@ long‑range coherence
 
 Roundabout routing is now a core part of Hybrid PKM GPU routing.
 
-Multi‑Layer Heatmaps + Zoning + Auto‑Optimizer
-KV‑Webb includes a multi‑resolution semantic heatmap engine:
+🔵 2. Multi‑Layer Heatmaps + Zoning + Auto‑Optimizer
+KV‑Webb now includes a multi‑resolution semantic heatmap engine:
 
 polygon‑weighted base heatmaps
 
-multiple smoothing layers
+multi‑layer smoothing
 
 per‑layer scratch pads
 
 per‑layer index maps
 
-per‑layer zoning (IDs, ranges, stats, centroid indices)
+per‑layer zoning (IDs, ranges, centroid nodes)
 
 zone complexity scoring
 
@@ -98,7 +99,7 @@ Hybrid PKM routing
 
 transformer mask construction
 
-Tier‑6 Hybrid PKM GPU Routing (Refined)
+🔵 3. Tier‑6 Hybrid PKM GPU Routing (Refined)
 The GPU routing engine now uses:
 
 heatmap‑driven region selection
@@ -121,7 +122,7 @@ multi‑stream CUDA execution
 
 The GPU becomes an autonomous routing brain.
 
-Tier‑6 Global Optimization Scheduler (Upgraded)
+🔵 4. Tier‑6 Global Optimization Scheduler (Upgraded)
 The scheduler continuously tunes:
 
 drift physics
@@ -309,8 +310,8 @@ drift‑resilience: 2×
 
 compression efficiency: heat‑driven BitDrop_v2 collapse
 
-🛡 Semantic Security Layer (SSL) (NEW)
-SSL is KV‑Webb’s autonomous multi‑attack defense matrix, operating inside the semantic‑geometry engine.
+🛡 Semantic Security Layer (SSL) + RAH (NEW)
+SSL is KV‑Webb’s autonomous multi‑attack defense matrix.
 
 Includes:
 
@@ -338,21 +339,33 @@ geometry‑aware threat scoring
 
 autonomous threshold tuning
 
-SSL protects KV‑Webb from:
+🔥 Reverse‑Adversarial Hardening (RAH)
+RAH captures attacker signatures:
 
-semantic corruption
+variance anomalies
 
-context hijacking
+heatmap spikes
 
-adversarial embeddings
+zone coherence breaks
 
-geometry‑breaking attacks
+root similarity drift
 
 polarity inversion
 
-zone flooding
+geometry‑break patterns
 
-KV‑Webb becomes a secure cognitive substrate.
+Then generates:
+
+global reverse masks
+
+zone‑aware reverse masks
+
+adversarial clusters
+
+These masks are fed back into SSL to harden thresholds using the attacker’s own pattern.
+
+KV‑Webb doesn’t just block attacks —
+it learns them, compresses them, and reflects them back internally as adaptive defenses.
 
 🚀 Why KV‑Webb Matters (Updated)
 Traditional KV‑cache:
@@ -405,7 +418,7 @@ uses multi‑layer heatmaps + zoning for fine‑grained routing
 
 auto‑tunes smoothing, routing depth, compression behavior
 
-protects itself with SSL
+protects itself with SSL + RAH
 
 KV‑Webb is no longer a KV‑cache replacement —
 it is synthetic cognitive infrastructure.

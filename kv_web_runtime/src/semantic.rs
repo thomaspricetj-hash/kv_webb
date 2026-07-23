@@ -19,6 +19,14 @@
 //! - scratchpad‑aware semantic exit hinting
 //! - stability‑weighted semantic routing decisions
 //!
+//! MAX‑tier firewall upgrades added:
+//! - Reverse‑Adversarial Hardening (RAH)
+//! - Attack signature capture + rolling history
+//! - Reverse‑mask generation over adversarial patterns
+//! - Zone‑aware reverse masks
+//! - Adversarial signature clustering
+//! - Reverse‑weighted firewall threshold adaptation
+//!
 //! All upgrades are backwards-compatible.
 
 use kv_web_core::{KvWeb, TokenId, WebNodeId, EdgeKind};
@@ -105,6 +113,189 @@ pub struct ThreatEvent {
     pub flip_ratio: f32,
 }
 
+/// MAX-tier: captured adversarial signature for reverse hardening.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttackSignature {
+    pub embedding_variance: f32,
+    pub spike: f32,
+    pub zone_coherence: f32,
+    pub root_similarity: f32,
+    pub flip_ratio: f32,
+    pub polygon_distance: f32,
+}
+
+impl AttackSignature {
+    pub fn from_event(
+        var: f32,
+        spike: f32,
+        zone_coherence: f32,
+        root_similarity: f32,
+        flip_ratio: f32,
+        polygon_distance: f32,
+    ) -> Self {
+        Self {
+            embedding_variance: var,
+            spike,
+            zone_coherence,
+            root_similarity,
+            flip_ratio,
+            polygon_distance,
+        }
+    }
+
+    pub fn as_vec(&self) -> Vec<f32> {
+        vec![
+            self.embedding_variance,
+            self.spike,
+            self.zone_coherence,
+            self.root_similarity,
+            self.flip_ratio,
+            self.polygon_distance,
+        ]
+    }
+}
+
+/// MAX-tier: adversarial cluster centroid.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdversarialCluster {
+    pub centroid: Vec<f32>,
+    pub count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FirewallHistory {
+    pub signatures: Vec<AttackSignature>,
+    pub max_entries: usize,
+}
+
+impl FirewallHistory {
+    pub fn new(max_entries: usize) -> Self {
+        Self {
+            signatures: Vec::new(),
+            max_entries,
+        }
+    }
+
+    pub fn record(&mut self, sig: AttackSignature) {
+        self.signatures.push(sig);
+        if self.signatures.len() > self.max_entries {
+            let overflow = self.signatures.len() - self.max_entries;
+            self.signatures.drain(0..overflow);
+        }
+    }
+
+    /// MAX-tier reverse mask: aggregate adversarial pattern into a compact vector.
+    pub fn reverse_mask(&self) -> Option<Vec<f32>> {
+        if self.signatures.is_empty() {
+            return None;
+        }
+
+        let mut sum_var = 0.0;
+        let mut sum_spike = 0.0;
+        let mut sum_zone = 0.0;
+        let mut sum_root = 0.0;
+        let mut sum_flip = 0.0;
+        let mut sum_poly = 0.0;
+
+        let len = self.signatures.len() as f32;
+
+        for s in &self.signatures {
+            sum_var += s.embedding_variance;
+            sum_spike += s.spike;
+            sum_zone += s.zone_coherence;
+            sum_root += s.root_similarity;
+            sum_flip += s.flip_ratio;
+            sum_poly += s.polygon_distance;
+        }
+
+        Some(vec![
+            sum_var / len,
+            sum_spike / len,
+            sum_zone / len,
+            sum_root / len,
+            sum_flip / len,
+            sum_poly / len,
+        ])
+    }
+
+    /// MAX-tier: simple adversarial clustering over signatures.
+    pub fn clusters(&self, max_clusters: usize) -> Vec<AdversarialCluster> {
+        if self.signatures.is_empty() || max_clusters == 0 {
+            return Vec::new();
+        }
+
+        // Simple online clustering: group by rough similarity of zone_coherence/root_similarity.
+        let mut clusters: Vec<AdversarialCluster> = Vec::new();
+
+        for sig in &self.signatures {
+            let v = sig.as_vec();
+            let mut best_idx: Option<usize> = None;
+            let mut best_sim = -1.0;
+
+            for (i, c) in clusters.iter().enumerate() {
+                let sim = cosine_similarity(&c.centroid, &v);
+                if sim > best_sim {
+                    best_sim = sim;
+                    best_idx = Some(i);
+                }
+            }
+
+            if let Some(idx) = best_idx {
+                if best_sim >= 0.8 {
+                    let c = &mut clusters[idx];
+                    let count_f = c.count as f32;
+                    for (j, val) in v.iter().enumerate() {
+                        c.centroid[j] =
+                            (c.centroid[j] * count_f + *val) / (count_f + 1.0);
+                    }
+                    c.count += 1;
+                } else if clusters.len() < max_clusters {
+                    clusters.push(AdversarialCluster {
+                        centroid: v.clone(),
+                        count: 1,
+                    });
+                }
+            } else if clusters.len() < max_clusters {
+                clusters.push(AdversarialCluster {
+                    centroid: v.clone(),
+                    count: 1,
+                });
+            }
+        }
+
+        clusters
+    }
+
+    /// MAX-tier: zone-aware reverse mask (filter by low zone coherence).
+    pub fn zone_reverse_mask(&self, zone_threshold: f32) -> Option<Vec<f32>> {
+        let filtered: Vec<&AttackSignature> = self
+            .signatures
+            .iter()
+            .filter(|s| s.zone_coherence < zone_threshold)
+            .collect();
+
+        if filtered.is_empty() {
+            return None;
+        }
+
+        let mut sum = vec![0.0; 6];
+        let len = filtered.len() as f32;
+
+        for s in filtered {
+            let v = s.as_vec();
+            for (i, val) in v.iter().enumerate() {
+                sum[i] += *val;
+            }
+        }
+
+        for v in &mut sum {
+            *v /= len;
+        }
+
+        Some(sum)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FirewallConfig {
     pub mode: FirewallMode,
@@ -117,6 +308,8 @@ pub struct FirewallConfig {
     pub root_similarity_min: f32,
     pub flip_ratio_max: f32,
     pub polygon_distance_factor: f32,
+    /// MAX-tier: rolling adversarial history for reverse hardening.
+    pub history: FirewallHistory,
 }
 
 impl Default for FirewallConfig {
@@ -132,6 +325,7 @@ impl Default for FirewallConfig {
             root_similarity_min: 0.05,
             flip_ratio_max: 0.7,
             polygon_distance_factor: 2.0,
+            history: FirewallHistory::new(256),
         }
     }
 }
@@ -257,7 +451,7 @@ fn build_semantic_scratch_pad(
 
 // ────────────────────────────────────────────────────────────────
 //   MULTI-ATTACK SEMANTIC FIREWALL (SPIF+)
-//   Hybrid detect/log/block/adapt
+//   Hybrid detect/log/block/adapt + reverse hardening
 // ────────────────────────────────────────────────────────────────
 //
 
@@ -464,6 +658,79 @@ fn adapt_firewall_config(cfg: &mut FirewallConfig, event: &ThreatEvent) {
     }
 }
 
+/// MAX-tier: record adversarial signature into history for reverse hardening.
+fn record_attack_signature(
+    cfg: &mut FirewallConfig,
+    var: f32,
+    spike: f32,
+    zone_coherence: f32,
+    root_similarity: f32,
+    flip_ratio: f32,
+    polygon_distance: f32,
+) {
+    let sig = AttackSignature::from_event(
+        var,
+        spike,
+        zone_coherence,
+        root_similarity,
+        flip_ratio,
+        polygon_distance,
+    );
+    cfg.history.record(sig);
+}
+
+/// Optional: expose reverse mask for higher-tier modules.
+pub fn firewall_reverse_mask(cfg: &FirewallConfig) -> Option<Vec<f32>> {
+    cfg.history.reverse_mask()
+}
+
+/// Optional: expose zone-aware reverse mask.
+pub fn firewall_zone_reverse_mask(cfg: &FirewallConfig, zone_threshold: f32) -> Option<Vec<f32>> {
+    cfg.history.zone_reverse_mask(zone_threshold)
+}
+
+/// Optional: expose adversarial clusters.
+pub fn firewall_adversarial_clusters(
+    cfg: &FirewallConfig,
+    max_clusters: usize,
+) -> Vec<AdversarialCluster> {
+    cfg.history.clusters(max_clusters)
+}
+
+/// MAX-tier: apply reverse mask to bias firewall thresholds.
+fn apply_reverse_mask(cfg: &mut FirewallConfig, mask: &[f32]) {
+    if mask.len() < 6 {
+        return;
+    }
+
+    let var = mask[0];
+    let spike = mask[1];
+    let zone = mask[2];
+    let root = mask[3];
+    let flip = mask[4];
+    let poly = mask[5];
+
+    // Use adversarial pattern to harden thresholds.
+    if var > cfg.variance_max {
+        cfg.variance_max = (cfg.variance_max * 0.9).max(1.0);
+    }
+    if spike > cfg.spike_threshold {
+        cfg.spike_threshold = (cfg.spike_threshold * 0.9).max(0.1);
+    }
+    if zone < cfg.zone_similarity_min {
+        cfg.zone_similarity_min = (cfg.zone_similarity_min + 0.01).min(0.6);
+    }
+    if root < cfg.root_similarity_min {
+        cfg.root_similarity_min = (cfg.root_similarity_min + 0.01).min(0.4);
+    }
+    if flip > cfg.flip_ratio_max {
+        cfg.flip_ratio_max = (cfg.flip_ratio_max * 0.95).max(0.3);
+    }
+    if poly > cfg.polygon_distance_factor {
+        cfg.polygon_distance_factor = (cfg.polygon_distance_factor * 1.05).min(4.0);
+    }
+}
+
 fn spif_detect(
     web: &KvWeb,
     embeddings: &HashMap<TokenId, Embedding>,
@@ -491,6 +758,27 @@ fn spif_detect(
         flip_ratio,
         polygon_distance,
     );
+
+    // MAX-tier: capture adversarial signature for reverse hardening.
+    record_attack_signature(
+        &mut cfg,
+        var,
+        spike,
+        zone_coherence,
+        root_similarity,
+        flip_ratio,
+        polygon_distance,
+    );
+
+    // MAX-tier: apply global reverse mask.
+    if let Some(mask) = cfg.history.reverse_mask() {
+        apply_reverse_mask(&mut cfg, &mask);
+    }
+
+    // MAX-tier: apply zone-aware reverse mask (focus on low-coherence zones).
+    if let Some(zone_mask) = cfg.history.zone_reverse_mask(cfg.zone_similarity_min) {
+        apply_reverse_mask(&mut cfg, &zone_mask);
+    }
 
     adapt_firewall_config(&mut cfg, &event);
 
@@ -1112,3 +1400,4 @@ impl KvWebSemanticRoundabout for KvWeb {
         }
     }
 }
+

@@ -1640,7 +1640,7 @@ Any attempt to violate, circumvent, replicate, approximate, analyze, or interfer
 
 The Licensor reserves the right to pursue all available legal remedies, including injunctive relief and damages.
 
-Autonomous Cognitive Architecture + Tier‑7 Semantic Geometry + Hybrid PKM GPU Routing + Semantic Roundabout Routing + SSL Defense Matrix  
+Autonomous Cognitive Architecture + Tier‑7 Semantic Geometry + Hybrid PKM GPU Routing + Semantic Roundabout Routing + SSL Defense Matrix
 
 © Thomas Price. All Rights Reserved.
 
@@ -2336,4 +2336,674 @@ KV‑Webb’s architecture is protected under a restrictive Evaluation License.
 No derivative works, re‑implementations, approximations, or functional equivalents are permitted.
 
 Companies wishing to use KV‑Webb in production must purchase a commercial license.
+
+📄 EVALUATION LICENSE AGREEMENT — Version 3.4 (Updated Summary)
+
+Autonomous Cognitive Architecture • Tier‑7 Semantic Geometry • Hybrid PKM GPU Routing • Semantic Roundabout Routing • SSL + RAH Defense Matrix
+
+© Thomas Price. All Rights Reserved.
+
+
+
+This summary reflects the protected mechanisms introduced in KV‑Webb Runtime 3.4.1, including Tier‑7 semantic geometry, multi‑layer heatmaps, zoning, Hybrid PKM GPU routing, semantic roundabout routing, and the Semantic Security Layer (SSL) with Reverse‑Adversarial Hardening (RAH).
+
+
+
+⭐ NEW SECTION: Semantic Roundabout Routing (Protected Cognitive Routing Mechanism)
+
+Evaluator may NOT replicate, approximate, simulate, emulate, or derive:
+
+
+
+hub‑based semantic routing
+
+
+
+multi‑exit semantic scoring
+
+
+
+circulation‑based routing
+
+
+
+drift‑aware circulation
+
+
+
+stability‑weighted exit selection
+
+
+
+priority escalation logic
+
+
+
+reinforcement‑based routing
+
+
+
+scratchpad‑hinted routing
+
+
+
+multi‑layer exit scoring
+
+
+
+semantic packet routing heuristics
+
+
+
+Roundabout routing is a protected Tier‑7 cognitive routing mechanism.
+
+
+
+⭐ NEW SECTION: Tier‑7 Semantic Geometry Systems (Multi‑Layer Heatmaps + Zoning + Auto‑Optimizer)
+
+Evaluator may NOT replicate or derive:
+
+
+
+multi‑layer semantic heatmap engine
+
+
+
+polygon‑weighted heatmaps
+
+
+
+centroid‑penalty + radius‑aware smoothing
+
+
+
+dual‑layer scratch pads
+
+
+
+per‑layer index maps
+
+
+
+per‑layer zoning engine
+
+
+
+zone segmentation + zone ranges
+
+
+
+zone complexity scoring
+
+
+
+zone‑driven semantic routing
+
+
+
+zone‑driven compression ordering
+
+
+
+heatmap‑driven GPU routing
+
+
+
+heatmap‑driven BitDrop\_v2 collapse ordering
+
+
+
+autonomous heatmap optimizer
+
+
+
+variance‑driven smoothing adjustment
+
+
+
+zone‑complexity‑driven routing adjustment
+
+
+
+semantic‑geometry routing heuristics
+
+
+
+These mechanisms constitute proprietary semantic‑geometry systems.
+
+
+
+⭐ NEW SECTION: Semantic Security Layer (SSL) + Reverse‑Adversarial Hardening (RAH)
+
+Evaluator may NOT replicate, approximate, simulate, derive, or interfere with:
+
+
+
+SPIF — Prompt‑Injection Firewall
+
+
+
+DDF — Drift‑Delta Firewall
+
+
+
+CHF — Context‑Hijack Firewall
+
+
+
+PIF — Polarity‑Inversion Firewall
+
+
+
+AEF — Adversarial Embedding Firewall
+
+
+
+ZFF — Zone‑Flooding Firewall
+
+
+
+GIF — Geometry‑Integrity Firewall
+
+
+
+ATDE — Auto‑Threat Detection Engine
+
+
+
+adaptive threshold logic
+
+
+
+suspicion‑level routing
+
+
+
+semantic‑security heuristics
+
+
+
+threat‑evaluation logic
+
+
+
+semantic‑geometry anomaly detection
+
+
+
+SSL telemetry formats
+
+
+
+SSL adaptive behavior
+
+
+
+🔥 Reverse‑Adversarial Hardening (RAH)
+
+Evaluator may NOT replicate or derive:
+
+
+
+adversarial signature capture
+
+
+
+rolling adversarial history
+
+
+
+global reverse masks
+
+
+
+zone‑aware reverse masks
+
+
+
+adversarial clustering
+
+
+
+reverse‑weighted threshold adaptation
+
+
+
+RAH is protected autonomous security infrastructure.
+
+
+
+⭐ UPDATED SECTION: Tier‑6 GPU Routing Systems (Hybrid PKM + Adaptive Daemons)
+
+Evaluator may NOT replicate or derive:
+
+
+
+Hybrid PKM routing model
+
+
+
+adaptive PKM daemon scheduling
+
+
+
+GPU‑resident routing brain
+
+
+
+semantic‑priority routing
+
+
+
+load‑priority routing
+
+
+
+hybrid semantic+load routing
+
+
+
+roundabout routing logic
+
+
+
+drift‑aware GPU re‑circulation
+
+
+
+polygon‑weighted GPU exits
+
+
+
+heatmap‑weighted GPU exits
+
+
+
+zone‑weighted GPU exits
+
+
+
+SM‑aware + warp‑aware routing
+
+
+
+multi‑stream GPU routing
+
+
+
+dynamic GPU batch scaling
+
+
+
+GPU block/grid scaling heuristics
+
+
+
+GPU routing packets + metadata formats
+
+
+
+GPU autonomous optimization loops
+
+
+
+Functional duplication is prohibited.
+
+
+
+⭐ UPDATED SECTION: Autonomous GPU Routing Behavior (Protected)
+
+Evaluator may NOT analyze, inspect, probe, reverse‑engineer, derive, simulate, or approximate:
+
+
+
+GPU‑resident decision‑making
+
+
+
+GPU‑resident routing heuristics
+
+
+
+GPU‑resident drift stabilization
+
+
+
+GPU‑resident semantic weighting
+
+
+
+GPU‑resident load balancing
+
+
+
+GPU‑resident polygon routing
+
+
+
+GPU‑resident heatmap routing
+
+
+
+GPU‑resident zone routing
+
+
+
+GPU‑resident branch routing
+
+
+
+GPU‑resident pruning routing
+
+
+
+GPU‑resident compression routing
+
+
+
+These behaviors are proprietary.
+
+
+
+⭐ UPDATED SECTION: Hybrid Priority Routing (Semantic + Load + Geometry)
+
+Evaluator may NOT replicate or derive:
+
+
+
+semantic‑weighted routing
+
+
+
+load‑weighted routing
+
+
+
+hybrid semantic+load routing
+
+
+
+drift‑weighted routing
+
+
+
+polygon‑weighted routing
+
+
+
+heatmap‑weighted routing
+
+
+
+zone‑weighted routing
+
+
+
+stability‑weighted routing
+
+
+
+Hybrid priority routing is a protected cognitive mechanism.
+
+
+
+⭐ UPDATED SECTION: Anti‑Functional‑Equivalence
+
+Evaluator may NOT build any system that uses:
+
+
+
+GPU daemons
+
+
+
+persistent GPU kernels
+
+
+
+hybrid PKM routing
+
+
+
+semantic roundabout routing
+
+
+
+semantic‑priority routing
+
+
+
+load‑priority routing
+
+
+
+hybrid semantic+load routing
+
+
+
+polygon‑weighted exits
+
+
+
+heatmap‑weighted exits
+
+
+
+zone‑weighted exits
+
+
+
+drift‑aware routing
+
+
+
+multi‑stream GPU routing
+
+
+
+SM‑aware routing
+
+
+
+warp‑aware routing
+
+
+
+GPU optimization loops
+
+
+
+semantic‑geometry routing
+
+
+
+multi‑layer heatmaps
+
+
+
+zoning segmentation
+
+
+
+heatmap auto‑optimization
+
+
+
+Functional duplication is strictly prohibited.
+
+
+
+⭐ UPDATED SECTION: Academic Restrictions
+
+Evaluator may NOT:
+
+
+
+study
+
+
+
+analyze
+
+
+
+publish
+
+
+
+teach
+
+
+
+research
+
+
+
+document
+
+
+
+present
+
+
+
+any part of:
+
+
+
+Hybrid PKM routing
+
+
+
+adaptive GPU daemons
+
+
+
+semantic roundabout routing
+
+
+
+GPU‑resident routing heuristics
+
+
+
+autonomous GPU optimization
+
+
+
+polygon‑weighted GPU routing
+
+
+
+heatmap‑weighted GPU routing
+
+
+
+zone‑weighted GPU routing
+
+
+
+semantic‑geometry routing
+
+
+
+multi‑layer heatmap engine
+
+
+
+zoning engine
+
+
+
+heatmap auto‑optimizer
+
+
+
+scheduler‑GPU coordination
+
+
+
+These systems are protected intellectual property.
+
+
+
+⭐ UPDATED SECTION: Commercial License Requirement
+
+Any use beyond evaluation — including:
+
+
+
+GPU routing
+
+
+
+Hybrid PKM
+
+
+
+adaptive GPU daemons
+
+
+
+semantic roundabout routing
+
+
+
+polygon‑weighted routing
+
+
+
+heatmap‑weighted routing
+
+
+
+zone‑weighted routing
+
+
+
+drift‑aware routing
+
+
+
+autonomous GPU optimization
+
+
+
+scheduler‑GPU coordination
+
+
+
+persistent‑kernel routing
+
+
+
+multi‑stream routing
+
+
+
+SM‑aware routing
+
+
+
+warp‑aware routing
+
+
+
+semantic‑geometry routing
+
+
+
+multi‑layer heatmaps
+
+
+
+zoning segmentation
+
+
+
+heatmap auto‑optimization
+
+
+
+requires a paid commercial license.
 
