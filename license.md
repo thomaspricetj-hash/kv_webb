@@ -1564,7 +1564,7 @@ Evaluator’s only path to continued use is purchasing a commercial license.
 
 📘 LICENSE ADDENDUM — Semantic Security Layer (SSL) Protection Clause (Enhanced Autonomous Edition)
 
-Semantic Security Layer (SSL) Protection.  
+Semantic Security Layer (SSL) Protection.
 
 The Semantic Security Layer — including but not limited to the Prompt‑Injection Firewall (SPIF), Drift‑Delta Firewall (DDF), Context‑Hijack Firewall (CHF), Polarity‑Inversion Firewall (PIF), Adversarial Embedding Firewall (AEF), Zone‑Flooding Firewall (ZFF), Geometry‑Integrity Firewall (GIF), the Auto‑Threat Detection Engine (ATDE), adaptive threshold logic, suspicion‑level routing, threat‑scoring heuristics, and any related semantic‑security mechanisms, algorithms, heuristics, telemetry formats, or detection logic — is proprietary technology owned exclusively by the Licensor.
 
@@ -1574,43 +1574,43 @@ The Licensee is expressly prohibited from:
 
 
 
-1\. Reverse Engineering or Analysis  
+1\. Reverse Engineering or Analysis
 
 Reverse‑engineering, decompiling, disassembling, analyzing, probing, inspecting, or attempting to derive the internal logic, structure, heuristics, decision‑making criteria, adaptive behavior, or threat‑evaluation methods of any SSL component.
 
 
 
-2\. Replication or Functional Approximation  
+2\. Replication or Functional Approximation
 
 Replicating, re‑implementing, simulating, approximating, emulating, or creating any system that behaves similarly to any SSL subsystem, whether in whole or in part, regardless of method, medium, abstraction level, or computational domain.
 
 
 
-3\. Use of SSL Outputs for Derivation  
+3\. Use of SSL Outputs for Derivation
 
 Using SSL outputs, suspicion levels, threat scores, logs, telemetry packets, or detection patterns to infer, reconstruct, approximate, or model any portion of the SSL’s internal mechanisms, adaptive logic, or semantic‑geometry defenses.
 
 
 
-4\. Machine Learning or Model Training  
+4\. Machine Learning or Model Training
 
 Training, fine‑tuning, evaluating, or supervising any machine learning model using SSL outputs, decisions, suspicion levels, threat events, or adaptive behaviors for the purpose of reproducing or approximating SSL functionality.
 
 
 
-5\. Derivative Works  
+5\. Derivative Works
 
 Developing derivative works based on any SSL subsystem, including semantic‑geometry defenses, centroid‑based detection, polygonal KV‑security logic, multi‑layer heatmap anomaly detection, adaptive thresholding, or autonomous threat‑evaluation heuristics.
 
 
 
-6\. Bypass or Interference  
+6\. Bypass or Interference
 
 Bypassing, disabling, modifying, overriding, suppressing, or interfering with any SSL subsystem, adaptive mechanism, suspicion‑level routing, or enforcement logic.
 
 
 
-7\. Telemetry or Observability Interference  
+7\. Telemetry or Observability Interference
 
 Reading, writing, exporting, intercepting, or attempting to interoperate with SSL telemetry formats, threat‑event packets, suspicion‑level logs, adaptive‑threshold updates, or internal observability structures.
 
@@ -1639,4 +1639,692 @@ Enforcement
 Any attempt to violate, circumvent, replicate, approximate, analyze, or interfere with any SSL subsystem or its adaptive enforcement logic constitutes immediate license termination.
 
 The Licensor reserves the right to pursue all available legal remedies, including injunctive relief and damages.
+
+Autonomous Cognitive Architecture + Tier‑7 Semantic Geometry + Hybrid PKM GPU Routing + Semantic Roundabout Routing + SSL Defense Matrix  
+
+© Thomas Price. All Rights Reserved.
+
+
+
+This Agreement governs all access to and use of the Software, including all cognitive systems, geometric routing systems, compression engines, optimization schedulers, GPU routing engines, Hybrid PKM systems, adaptive GPU daemons, semantic‑geometry systems, multi‑layer heatmap engines, zoning engines, auto‑optimizers, roundabout routing logic, SSL defense systems, and all related materials.
+
+
+
+The following sections define the protected mechanisms introduced in KV‑Webb Runtime 3.4.1.
+
+
+
+⭐ NEW SECTION: Semantic Roundabout Routing (Protected Cognitive Routing Mechanism)
+
+Evaluator may NOT re‑implement, emulate, approximate, simulate, or derive any part of the Software’s:
+
+
+
+semantic roundabout routing logic
+
+
+
+hub‑based semantic routing
+
+
+
+multi‑exit semantic scoring
+
+
+
+circulation‑based routing
+
+
+
+stability‑weighted exit selection
+
+
+
+priority escalation logic
+
+
+
+reinforcement‑based routing
+
+
+
+multi‑layer exit scoring
+
+
+
+scratchpad‑hinted routing
+
+
+
+drift‑aware circulation
+
+
+
+semantic packet routing heuristics
+
+
+
+Evaluator may NOT build any system that behaves similarly to the above.
+
+
+
+⭐ NEW SECTION: Tier‑7 Semantic Geometry Systems (Multi‑Layer Heatmaps + Zoning + Auto‑Optimizer)
+
+Evaluator may NOT replicate or derive:
+
+
+
+multi‑layer semantic heatmap engine
+
+
+
+polygon‑weighted heatmaps
+
+
+
+centroid‑penalty smoothing
+
+
+
+radius‑aware smoothing
+
+
+
+multi‑layer smoothing logic
+
+
+
+dual‑layer scratch pads
+
+
+
+per‑layer index maps
+
+
+
+per‑layer zoning engine
+
+
+
+zone segmentation logic
+
+
+
+zone‑range generation
+
+
+
+zone‑complexity scoring
+
+
+
+zone‑driven semantic routing
+
+
+
+zone‑driven compression ordering
+
+
+
+heatmap‑driven GPU routing
+
+
+
+heatmap‑driven BitDrop\_v2 collapse ordering
+
+
+
+heatmap performance metrics
+
+
+
+autonomous heatmap optimizer
+
+
+
+variance‑driven smoothing adjustment
+
+
+
+zone‑complexity‑driven routing adjustment
+
+
+
+semantic‑geometry routing heuristics
+
+
+
+These mechanisms are proprietary and constitute trade secrets.
+
+
+
+⭐ NEW SECTION: Semantic Security Layer (SSL) — Autonomous Multi‑Attack Defense Matrix
+
+Evaluator may NOT replicate, approximate, simulate, derive, or interfere with:
+
+
+
+Prompt‑Injection Firewall (SPIF)
+
+
+
+Drift‑Delta Firewall (DDF)
+
+
+
+Context‑Hijack Firewall (CHF)
+
+
+
+Polarity‑Inversion Firewall (PIF)
+
+
+
+Adversarial Embedding Firewall (AEF)
+
+
+
+Zone‑Flooding Firewall (ZFF)
+
+
+
+Geometry‑Integrity Firewall (GIF)
+
+
+
+Auto‑Threat Detection Engine (ATDE)
+
+
+
+adaptive threshold logic
+
+
+
+suspicion‑level routing
+
+
+
+semantic‑security heuristics
+
+
+
+threat‑evaluation logic
+
+
+
+semantic‑geometry anomaly detection
+
+
+
+SSL telemetry formats
+
+
+
+SSL adaptive behavior
+
+
+
+Evaluator may NOT train any machine learning model using SSL outputs.
+
+
+
+SSL is core security infrastructure.
+
+
+
+⭐ UPDATED SECTION: Tier‑6 GPU Routing Systems (Hybrid PKM + Adaptive Daemons)
+
+Evaluator may NOT replicate or derive:
+
+
+
+Hybrid PKM routing model
+
+
+
+adaptive PKM daemon scheduling
+
+
+
+GPU‑resident routing brain
+
+
+
+semantic‑priority routing heuristics
+
+
+
+load‑priority routing heuristics
+
+
+
+hybrid semantic+load routing
+
+
+
+roundabout routing logic
+
+
+
+drift‑aware GPU re‑circulation
+
+
+
+polygon‑weighted GPU exits
+
+
+
+heatmap‑weighted GPU exits
+
+
+
+zone‑weighted GPU exits
+
+
+
+SM‑aware + warp‑aware routing
+
+
+
+multi‑stream GPU routing
+
+
+
+dynamic GPU batch scaling
+
+
+
+GPU block/grid scaling heuristics
+
+
+
+GPU routing packets + metadata formats
+
+
+
+GPU daemon coordination logic
+
+
+
+GPU crossover heuristics
+
+
+
+GPU scheduling heuristics
+
+
+
+GPU persistent‑kernel routing behavior
+
+
+
+GPU autonomous optimization loops
+
+
+
+Functional duplication is prohibited.
+
+
+
+⭐ UPDATED SECTION: Autonomous GPU Routing Behavior (Protected)
+
+Evaluator may NOT analyze, inspect, probe, reverse‑engineer, derive, simulate, or approximate:
+
+
+
+GPU‑resident decision‑making
+
+
+
+GPU‑resident routing heuristics
+
+
+
+GPU‑resident drift stabilization
+
+
+
+GPU‑resident semantic weighting
+
+
+
+GPU‑resident load balancing
+
+
+
+GPU‑resident polygon routing
+
+
+
+GPU‑resident heatmap routing
+
+
+
+GPU‑resident zone routing
+
+
+
+GPU‑resident branch routing
+
+
+
+GPU‑resident pruning routing
+
+
+
+GPU‑resident compression routing
+
+
+
+These behaviors are proprietary.
+
+
+
+⭐ UPDATED SECTION: Hybrid Priority Routing (Semantic + Load + Geometry)
+
+Evaluator may NOT replicate or derive:
+
+
+
+semantic‑weighted routing
+
+
+
+load‑weighted routing
+
+
+
+hybrid semantic+load routing
+
+
+
+drift‑weighted routing
+
+
+
+polygon‑weighted routing
+
+
+
+heatmap‑weighted routing
+
+
+
+zone‑weighted routing
+
+
+
+stability‑weighted routing
+
+
+
+Hybrid priority routing is a protected cognitive mechanism.
+
+
+
+⭐ UPDATED SECTION: Anti‑Functional‑Equivalence
+
+Evaluator may NOT build any system that uses:
+
+
+
+GPU daemons
+
+
+
+persistent GPU kernels
+
+
+
+hybrid PKM routing
+
+
+
+semantic roundabout routing
+
+
+
+semantic‑priority routing
+
+
+
+load‑priority routing
+
+
+
+hybrid semantic+load routing
+
+
+
+polygon‑weighted exits
+
+
+
+heatmap‑weighted exits
+
+
+
+zone‑weighted exits
+
+
+
+drift‑aware routing
+
+
+
+multi‑stream GPU routing
+
+
+
+SM‑aware routing
+
+
+
+warp‑aware routing
+
+
+
+GPU optimization loops
+
+
+
+semantic‑geometry routing
+
+
+
+multi‑layer heatmaps
+
+
+
+zoning segmentation
+
+
+
+heatmap auto‑optimization
+
+
+
+Functional duplication is strictly prohibited.
+
+
+
+⭐ UPDATED SECTION: Academic Restrictions
+
+Evaluator may NOT:
+
+
+
+study
+
+
+
+analyze
+
+
+
+publish
+
+
+
+teach
+
+
+
+research
+
+
+
+document
+
+
+
+present
+
+
+
+any part of:
+
+
+
+Hybrid PKM routing
+
+
+
+adaptive GPU daemons
+
+
+
+semantic roundabout routing
+
+
+
+GPU‑resident routing heuristics
+
+
+
+autonomous GPU optimization
+
+
+
+polygon‑weighted GPU routing
+
+
+
+heatmap‑weighted GPU routing
+
+
+
+zone‑weighted GPU routing
+
+
+
+semantic‑geometry routing
+
+
+
+multi‑layer heatmap engine
+
+
+
+zoning engine
+
+
+
+heatmap auto‑optimizer
+
+
+
+scheduler‑GPU coordination
+
+
+
+These systems are protected intellectual property.
+
+
+
+⭐ UPDATED SECTION: Commercial License Requirement
+
+Any use beyond evaluation — including:
+
+
+
+GPU routing
+
+
+
+Hybrid PKM
+
+
+
+adaptive GPU daemons
+
+
+
+semantic roundabout routing
+
+
+
+polygon‑weighted routing
+
+
+
+heatmap‑weighted routing
+
+
+
+zone‑weighted routing
+
+
+
+drift‑aware routing
+
+
+
+autonomous GPU optimization
+
+
+
+scheduler‑GPU coordination
+
+
+
+persistent‑kernel routing
+
+
+
+multi‑stream routing
+
+
+
+SM‑aware routing
+
+
+
+warp‑aware routing
+
+
+
+semantic‑geometry routing
+
+
+
+multi‑layer heatmaps
+
+
+
+zoning segmentation
+
+
+
+heatmap auto‑optimization
+
+
+
+requires a paid commercial license.
+
+
+
+Evaluator’s only path to continued use is purchasing a commercial license.
+
+
 

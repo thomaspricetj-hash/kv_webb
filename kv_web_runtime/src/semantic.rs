@@ -12,12 +12,20 @@
 //! - Prompt‑Injection Firewall (SPIF) + multi-attack semantic firewalls
 //! - Auto‑Threat Detection Engine (ATDE) with hybrid detect/log/block/adapt
 //!
+//! MAX‑tier upgrades added:
+//! - semantic roundabout hubs per root node
+//! - multilayer exit scoring over semantic zones
+//! - circulation when no stable semantic exit is available
+//! - scratchpad‑aware semantic exit hinting
+//! - stability‑weighted semantic routing decisions
+//!
 //! All upgrades are backwards-compatible.
 
 use kv_web_core::{KvWeb, TokenId, WebNodeId, EdgeKind};
 use rayon::prelude::*;
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
+use std::time::Instant;
 
 pub type Embedding = Vec<f32>;
 
@@ -247,7 +255,6 @@ fn build_semantic_scratch_pad(
     SemanticScratchPad { layer_a, layer_b }
 }
 
-//
 // ────────────────────────────────────────────────────────────────
 //   MULTI-ATTACK SEMANTIC FIREWALL (SPIF+)
 //   Hybrid detect/log/block/adapt
@@ -365,7 +372,7 @@ fn compute_polygon_distance(
 
 fn evaluate_threat(
     cfg: &FirewallConfig,
-    mean: f32,
+    _mean: f32,
     var: f32,
     spike: f32,
     zone_coherence: f32,
@@ -467,7 +474,7 @@ fn spif_detect(
 ) -> bool {
     let mut cfg = FirewallConfig::default();
 
-    let (_mean, var) = compute_embedding_stats(new_embedding);
+    let (mean, var) = compute_embedding_stats(new_embedding);
     let spike = compute_heatmap_spike(heatmap_layers);
     let zone_coherence = compute_zone_coherence(web, embeddings, new_embedding, zoning);
     let root_similarity = compute_root_similarity(web, embeddings, new_embedding, zoning);
@@ -476,7 +483,7 @@ fn spif_detect(
 
     let event = evaluate_threat(
         &cfg,
-        _mean,
+        mean,
         var,
         spike,
         zone_coherence,
@@ -895,5 +902,213 @@ impl KvWebSemantic for KvWeb {
                 *similarity_threshold,
             ))
         })
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+//   SEMANTIC ROUNDABOUT MAX‑TIER UPGRADE
+//   Hub‑based multilayer semantic routing
+// ────────────────────────────────────────────────────────────────
+//
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SemanticPriority {
+    High,
+    Standard,
+    Low,
+}
+
+#[derive(Debug, Clone)]
+pub struct SemanticPacket {
+    pub id: u64,
+    pub priority: SemanticPriority,
+    pub root: WebNodeId,
+    pub created_at: Instant,
+    pub last_attempt: Instant,
+    pub hops: u32,
+    pub last_exit_zone: Option<usize>,
+    pub route_score: f32,
+    pub stability_factor: f32,
+}
+
+impl SemanticPacket {
+    pub fn new(id: u64, root: WebNodeId, priority: SemanticPriority) -> Self {
+        let now = Instant::now();
+        Self {
+            id,
+            priority,
+            root,
+            created_at: now,
+            last_attempt: now,
+            hops: 0,
+            last_exit_zone: None,
+            route_score: 0.0,
+            stability_factor: 1.0,
+        }
+    }
+
+    pub fn escalate(&mut self) {
+        self.priority = match self.priority {
+            SemanticPriority::High => SemanticPriority::High,
+            SemanticPriority::Standard => SemanticPriority::High,
+            SemanticPriority::Low => SemanticPriority::Standard,
+        };
+        self.stability_factor = (self.stability_factor + 0.05).min(2.0);
+    }
+
+    pub fn reinforce(&mut self, success: bool) {
+        if success {
+            self.stability_factor = (self.stability_factor + 0.05).min(2.0);
+        } else {
+            self.stability_factor = (self.stability_factor - 0.05).max(0.1);
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SemanticRoundaboutConfig {
+    pub max_hops_before_escalation: u32,
+    pub max_age_before_force_exit_ms: u64,
+}
+
+impl Default for SemanticRoundaboutConfig {
+    fn default() -> Self {
+        Self {
+            max_hops_before_escalation: 8,
+            max_age_before_force_exit_ms: 250,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SemanticExitCandidate {
+    pub zone_id: usize,
+    pub node_id: WebNodeId,
+    pub score: f32,
+}
+
+#[derive(Debug)]
+pub enum SemanticRouteDecision {
+    Circulate(SemanticPacket),
+    Exit {
+        packet: SemanticPacket,
+        zone_id: usize,
+        node_id: WebNodeId,
+    },
+}
+
+/// MAX-tier semantic roundabout hub per root node.
+pub trait KvWebSemanticRoundabout {
+    fn route_semantic_packet(
+        &mut self,
+        embeddings: &HashMap<TokenId, Embedding>,
+        zoning: &SemanticZoning,
+        cfg: &SemanticRoundaboutConfig,
+        packet: SemanticPacket,
+    ) -> SemanticRouteDecision;
+}
+
+impl KvWebSemanticRoundabout for KvWeb {
+    fn route_semantic_packet(
+        &mut self,
+        embeddings: &HashMap<TokenId, Embedding>,
+        zoning: &SemanticZoning,
+        cfg: &SemanticRoundaboutConfig,
+        packet: SemanticPacket,
+    ) -> SemanticRouteDecision {
+        let mut packet = packet;
+        let now = Instant::now();
+        packet.hops += 1;
+        packet.last_attempt = now;
+
+        let age_ms = now.duration_since(packet.created_at).as_millis() as u64;
+        if age_ms >= cfg.max_age_before_force_exit_ms
+            || packet.hops >= cfg.max_hops_before_escalation
+        {
+            packet.escalate();
+        }
+
+        // Build multilayer exit candidates from zones + scratch pad
+        let mut candidates: Vec<SemanticExitCandidate> = Vec::new();
+
+        for zone in &zoning.zones {
+            let zone_id = zone.zone_id;
+            let slice = &zoning.index_map[zone.start..zone.end];
+
+            for node_id in slice {
+                if let Some(node) = self.nodes.get(node_id) {
+                    let centroid = centroid_embedding(&node.tokens, embeddings);
+                    if centroid.is_empty() {
+                        continue;
+                    }
+
+                    // Firewall on semantic exit centroid
+                    if spif_detect(
+                        self,
+                        embeddings,
+                        &centroid,
+                        node.polygon.as_ref(),
+                        Some(zoning),
+                        Some(&zoning.scratch.layer_a),
+                    ) {
+                        continue;
+                    }
+
+                    let base_sim = cosine_similarity(&centroid, &centroid);
+                    let bias = polygon_similarity_bias(self, zoning.root, *node_id, base_sim);
+
+                    let scratch_idx = zoning.nodes.iter().position(|n| n == node_id);
+                    let scratch_sim = scratch_idx
+                        .map(|i| zoning.scratch.layer_a[i])
+                        .unwrap_or(0.0);
+
+                    let score = bias * 0.5 + scratch_sim * 0.5;
+
+                    candidates.push(SemanticExitCandidate {
+                        zone_id,
+                        node_id: *node_id,
+                        score,
+                    });
+                }
+            }
+        }
+
+        // Sort candidates by score descending
+        candidates.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        // Scratchpad hint: prefer last successful zone if still viable
+        let mut chosen: Option<SemanticExitCandidate> = None;
+
+        if let Some(hint_zone) = packet.last_exit_zone {
+            if let Some(hinted) = candidates.iter().find(|c| c.zone_id == hint_zone) {
+                chosen = Some(hinted.clone());
+            }
+        }
+
+        if chosen.is_none() {
+            chosen = candidates.first().cloned();
+        }
+
+        match chosen {
+            None => {
+                packet.reinforce(false);
+                SemanticRouteDecision::Circulate(packet)
+            }
+            Some(exit) => {
+                packet.route_score = exit.score;
+                packet.last_exit_zone = Some(exit.zone_id);
+                packet.reinforce(true);
+
+                SemanticRouteDecision::Exit {
+                    packet,
+                    zone_id: exit.zone_id,
+                    node_id: exit.node_id,
+                }
+            }
+        }
     }
 }
