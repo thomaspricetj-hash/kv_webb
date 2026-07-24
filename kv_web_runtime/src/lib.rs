@@ -6,6 +6,7 @@ pub mod semantic;
 pub mod dynamic_web;
 pub mod pruning;
 pub mod drift;
+pub mod predictor;
 
 // Newly wired modules (4–8)
 pub mod cluster;
@@ -15,6 +16,7 @@ pub mod heatmap;
 
 use kv_web_core::{KvWeb, WebNodeId, TokenId, WebNode, KvWebCompressor};
 use std::collections::{HashSet, VecDeque};
+pub use predictor::{KvWebPredictor, KvWebPredictorConfig, KvWebPredictorMemory};
 
 /// Runtime extensions for KvWeb.
 /// This is intentionally separate from the core crate so the core stays pure.
@@ -301,7 +303,7 @@ impl KvWebRuntime for KvWeb {
     }
 
     // -------------------------------------------------------------------------
-    // ⭐ MAX‑TIER UNIFIED OPTIMIZATION LOOP
+    // ⭐ MAX‑TIER UNIFIED OPTIMIZATION LOOP (with predictor wired in)
     // -------------------------------------------------------------------------
     fn optimize_runtime(&mut self) {
         use crate::{
@@ -313,6 +315,22 @@ impl KvWebRuntime for KvWeb {
             graph_ops::{GraphOpsOptimizationConfig, optimize_graph_ops},
             heatmap::{HeatmapOptimizationConfig, optimize_heatmap},
             semantic::{SemanticOptimizationConfig, KvWebSemantic},
+            predictor::{KvWebPredictor, KvWebPredictorConfig, KvWebPredictorMemory},
+        };
+
+        // 0) Predictor config + memory (global activity prediction)
+        let predictor_cfg = KvWebPredictorConfig {
+            min_activity: 0.0,
+            max_activity: 1.0,
+            drift_weight: 0.0,   // can be wired to drift later
+            edge_weight: 0.3,
+            heat_weight: 0.6,
+            prune_weight: 0.4,
+        };
+
+        let mut predictor_memory = KvWebPredictorMemory {
+            patterns: Vec::new(),
+            decay: 0.9,
         };
 
         // 1) Drift optimization
@@ -425,7 +443,14 @@ impl KvWebRuntime for KvWeb {
         };
         clusters.optimize(self, &cluster_opt);
 
-        // 8) Runtime scheduler tick (max‑tier global pass)
+        // 8) Predictor pass (GPU-ready compressed packet)
+        let _predictor_packet = self.predict_activity_compressed(
+            &predictor_cfg,
+            &mut predictor_memory,
+            32, // top_k
+        );
+
+        // 9) Runtime scheduler tick (max‑tier global pass)
         let mut scheduler = RuntimeScheduler::new(RuntimeSchedulerConfig {
             default_root: WebNodeId(0),
             default_depth: 3,

@@ -3015,7 +3015,7 @@ Revolving‑Door Firewall Protection Clause (MAX‑Tier Upgrade)
 
 📜 License Addendum — MAX‑Tier Security Enhancements
 
-MAX‑Tier Security Addendum (Revolving‑Door Firewall + False Door Deception Layer)  
+MAX‑Tier Security Addendum (Revolving‑Door Firewall + False Door Deception Layer)
 
 This software now incorporates advanced security mechanisms including, but not limited to, the Revolving‑Door Firewall, False Door Deception Layer, Reverse‑Adversarial Hardening, semantic‑geometry phase rotation, adversarial signature clustering, and non‑stationary adaptive threshold cycling. These systems collectively form a dynamic, self‑modifying security perimeter designed to resist fingerprinting, reverse‑engineering, replay attacks, semantic hijacking, adversarial embeddings, and geometry‑breaking intrusion attempts.
 
@@ -3026,4 +3026,46 @@ All MAX‑tier security components, their underlying algorithms, operational beh
 
 
 All rights to the design, implementation, evolution, and future upgrades of these security systems remain exclusively with the copyright holder. Use of this software constitutes agreement to these terms.
+
+
+
+This project, including all current and future modules, subsystems, upgrades, 
+
+optimizations, security layers, routing engines, geometry systems, compression 
+
+mechanisms, predictors, schedulers, firewalls, and any derivative components 
+
+thereof (collectively, “Extended Runtime Components”), is hereby licensed under 
+
+the same terms as the main KV‑Webb Runtime license.
+
+
+
+All Extended Runtime Components—including but not limited to: semantic 
+
+roundabout routing, multi‑layer heatmaps, zoning systems, drift physics, 
+
+pruning physics, dynamic webbing, clustering engines, embedding geometry, 
+
+BitDrop\_v2 compression, Hybrid PKM GPU routing, global activity predictor, 
+
+scheduler roundabout pipeline, Semantic Security Layer (SSL), Reverse‑Adversarial 
+
+Hardening (RAH), Revolving‑Door Firewall, False Door Deception Layer, and any 
+
+future enhancements—are considered integral parts of the KV‑Webb Runtime and are 
+
+covered fully and without limitation by this license.
+
+
+
+No additional restrictions, obligations, or separate licensing terms apply to 
+
+any Extended Runtime Components. All rights, permissions, protections, and 
+
+limitations granted by this license automatically extend to all such components, 
+
+whether added now or in the future.
+
+
 
