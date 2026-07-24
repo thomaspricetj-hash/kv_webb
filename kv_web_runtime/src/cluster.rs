@@ -1,13 +1,19 @@
 //! cluster.rs
 //!
 //! Semantic clustering over KV Web nodes + BitDrop_v2 max‑tier compression
-//! + Polygonal‑KV geometry upgrade.
+//! + Polygon‑KV geometry upgrade.
 //!
 //! Tier‑6 upgrades:
 //! - parallel geometry evaluation
 //! - cluster indexing + zoning
 //! - dual-layer scratch pads (score + geometry)
 //! - GPU-ready compressed cluster packets
+//!
+//! Max-tier upgrade:
+//! - Cross-link grids (clusters/zones → nodes)
+//! - Revolving-door routing over clusters (entry/exit + flow)
+//! - Fusion field over clusters (score + geometry + door flow)
+//! - Embedded Roundabout logic (heatmaps + predictor + smoothing + memory + solver)
 //!
 //! All upgrades are backwards-compatible.
 
@@ -73,6 +79,70 @@ pub struct ClusterZoning {
     pub indices: Vec<usize>,
     pub zones: Vec<ClusterZone>,
     pub scratch: ClusterScratchPad,
+}
+
+/// Cross-link grid over clusters.
+/// Links zones and clusters to node sets for routing.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClusterCrossLinkGrid {
+    /// Cluster ID → nodes
+    pub cluster_to_nodes: Vec<Vec<WebNodeId>>,
+    /// Zone ID → cluster indices
+    pub zone_to_clusters: Vec<Vec<usize>>,
+}
+
+/// Revolving door over clusters.
+/// Entry/exit clusters + flow scalar.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClusterRevolvingDoor {
+    pub door_id: usize,
+    pub entry_cluster_id: usize,
+    pub exit_cluster_id: usize,
+    pub flow_strength: f32,
+}
+
+/// Fusion field over clusters.
+/// Combines score, geometry, and door flow into a single bias.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClusterFusionField {
+    pub fused_score: Vec<f32>,
+}
+
+/// Roundabout cluster predictor configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RoundaboutClusterPredictorConfig {
+    pub passes: usize,
+    pub min_bias: f32,
+    pub max_bias: f32,
+    pub smoothing_strength: f32,
+}
+
+/// Roundabout cluster chain (a routed path through cluster indices).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RoundaboutClusterChain {
+    pub cluster_ids: Vec<usize>,
+    pub total_bias: f32,
+}
+
+/// Roundabout cluster pattern memory entry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RoundaboutClusterPattern {
+    pub chain: RoundaboutClusterChain,
+    pub weight: f32,
+}
+
+/// Roundabout cluster pattern memory with decay.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RoundaboutClusterPatternMemory {
+    pub patterns: Vec<RoundaboutClusterPattern>,
+    pub decay: f32,
+}
+
+/// Roundabout solver result for clusters.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RoundaboutClusterSolverResult {
+    pub chosen_cluster_id: usize,
+    pub bias: f32,
 }
 
 pub struct KvWebClusters {
@@ -321,6 +391,304 @@ impl KvWebClusters {
             ));
         }
     }
+
+    /// Build cross-link grid from current clusters + zoning.
+    pub fn build_cross_link_grid(&self, num_zones: usize) -> ClusterCrossLinkGrid {
+        let zoning = self.build_zoning(num_zones);
+
+        let mut cluster_to_nodes = Vec::with_capacity(self.clusters.len());
+        for c in &self.clusters {
+            cluster_to_nodes.push(c.nodes.clone());
+        }
+
+        let mut zone_to_clusters = Vec::new();
+        for zone in &zoning.zones {
+            let mut indices = Vec::new();
+            for i in zone.start..zone.end {
+                indices.push(zoning.indices[i]);
+            }
+            zone_to_clusters.push(indices);
+        }
+
+        ClusterCrossLinkGrid {
+            cluster_to_nodes,
+            zone_to_clusters,
+        }
+    }
+
+    /// Build revolving doors over clusters using zoning.
+    pub fn build_revolving_doors(
+        &self,
+        num_zones: usize,
+    ) -> Vec<ClusterRevolvingDoor> {
+        let zoning = self.build_zoning(num_zones);
+        let mut doors = Vec::new();
+        let mut door_id = 0usize;
+
+        if zoning.zones.len() < 2 {
+            return doors;
+        }
+
+        // Simple heuristic: first zone = entry, last zone = exit.
+        let entry_zone = &zoning.zones[0];
+        let exit_zone = &zoning.zones[zoning.zones.len() - 1];
+
+        let entry_cluster_id = entry_zone
+            .centroid_cluster
+            .unwrap_or(zoning.indices[entry_zone.start]);
+        let exit_cluster_id = exit_zone
+            .centroid_cluster
+            .unwrap_or(zoning.indices[exit_zone.start]);
+
+        let entry_score = self.clusters[entry_cluster_id].score;
+        let exit_score = self.clusters[exit_cluster_id].score;
+        let flow_strength = (exit_score - entry_score).abs();
+
+        doors.push(ClusterRevolvingDoor {
+            door_id,
+            entry_cluster_id,
+            exit_cluster_id,
+            flow_strength,
+        });
+
+        doors
+    }
+
+    /// Build fusion field over clusters from scores + geometry + doors.
+    pub fn build_fusion_field(
+        &self,
+        doors: &[ClusterRevolvingDoor],
+    ) -> ClusterFusionField {
+        let mut fused = Vec::with_capacity(self.clusters.len());
+
+        for (idx, c) in self.clusters.iter().enumerate() {
+            let mut bias = c.score;
+
+            // Geometry contribution: lower routing_error and radius_error → higher bias.
+            let geom_penalty = (c.routing_error + c.radius_error) * 0.1;
+            bias *= (1.0 - geom_penalty).max(0.0);
+
+            // Door flow contribution: if cluster is entry/exit, boost.
+            for door in doors {
+                if door.entry_cluster_id == idx || door.exit_cluster_id == idx {
+                    bias *= 1.0 + door.flow_strength * 0.05;
+                }
+            }
+
+            fused.push(bias);
+        }
+
+        ClusterFusionField { fused_score: fused }
+    }
+
+    /// Run roundabout cluster predictor: multi-pass chain over fused scores.
+    pub fn run_roundabout_predictor(
+        &self,
+        fusion: &ClusterFusionField,
+        cfg: &RoundaboutClusterPredictorConfig,
+    ) -> RoundaboutClusterChain {
+        let mut cluster_ids = Vec::new();
+        let mut total = 0.0f32;
+
+        let mut visited = vec![false; fusion.fused_score.len()];
+
+        for _pass in 0..cfg.passes {
+            let mut best_id = None;
+            let mut best_bias = cfg.min_bias;
+
+            for (i, b) in fusion.fused_score.iter().enumerate() {
+                if visited[i] {
+                    continue;
+                }
+                if *b > best_bias && *b <= cfg.max_bias {
+                    best_bias = *b;
+                    best_id = Some(i);
+                }
+            }
+
+            if let Some(id) = best_id {
+                visited[id] = true;
+                cluster_ids.push(id);
+                total += best_bias;
+            } else {
+                break;
+            }
+        }
+
+        RoundaboutClusterChain {
+            cluster_ids,
+            total_bias: total,
+        }
+    }
+
+    /// Smooth roundabout cluster chain by local averaging over fused scores.
+    pub fn smooth_roundabout_chain(
+        &self,
+        chain: &mut RoundaboutClusterChain,
+        fusion: &ClusterFusionField,
+        strength: f32,
+    ) {
+        if chain.cluster_ids.len() < 3 {
+            return;
+        }
+
+        let mut new_total = 0.0f32;
+
+        for (i, id) in chain.cluster_ids.iter().enumerate() {
+            let mut local_sum = 0.0f32;
+            let mut local_count = 0.0f32;
+
+            for j in i.saturating_sub(1)..=(i + 1).min(chain.cluster_ids.len() - 1) {
+                let nid = chain.cluster_ids[j];
+                if nid < fusion.fused_score.len() {
+                    local_sum += fusion.fused_score[nid];
+                    local_count += 1.0;
+                }
+            }
+
+            if local_count > 0.0 {
+                let avg = local_sum / local_count;
+                let base = if *id < fusion.fused_score.len() {
+                    fusion.fused_score[*id]
+                } else {
+                    0.0
+                };
+                new_total += avg * strength + base * (1.0 - strength);
+            }
+        }
+
+        chain.total_bias = new_total;
+    }
+
+    /// Update cluster pattern memory with new chain, applying decay.
+    pub fn update_pattern_memory(
+        &self,
+        memory: &mut RoundaboutClusterPatternMemory,
+        chain: &RoundaboutClusterChain,
+    ) {
+        for pattern in &mut memory.patterns {
+            pattern.weight *= memory.decay;
+        }
+
+        memory.patterns.push(RoundaboutClusterPattern {
+            chain: chain.clone(),
+            weight: 1.0,
+        });
+
+        memory.patterns.retain(|p| p.weight > 0.01);
+    }
+
+    /// Apply roundabout bias to fused scores using pattern memory.
+    pub fn apply_roundabout_bias(
+        &self,
+        fusion: &mut ClusterFusionField,
+        memory: &RoundaboutClusterPatternMemory,
+    ) {
+        let mut fused = fusion.fused_score.clone();
+
+        for pattern in &memory.patterns {
+            let boost = pattern.weight * 0.05;
+            for id in &pattern.chain.cluster_ids {
+                if *id < fused.len() {
+                    fused[*id] *= 1.0 + boost;
+                }
+            }
+        }
+
+        // Normalize fused scores.
+        let mut max = 0.0f32;
+        for v in &fused {
+            if *v > max {
+                max = *v;
+            }
+        }
+        if max > 0.0 {
+            for v in &mut fused {
+                *v /= max;
+            }
+        }
+
+        fusion.fused_score = fused;
+    }
+
+    /// Run roundabout cluster solver: choose final cluster using fused scores + chain + memory.
+    pub fn run_roundabout_solver(
+        &self,
+        fusion: &ClusterFusionField,
+        chain: &RoundaboutClusterChain,
+        memory: &RoundaboutClusterPatternMemory,
+    ) -> RoundaboutClusterSolverResult {
+        // Prefer last cluster in chain if available.
+        if let Some(&last) = chain.cluster_ids.last() {
+            let bias = fusion.fused_score.get(last).copied().unwrap_or(0.0);
+            return RoundaboutClusterSolverResult {
+                chosen_cluster_id: last,
+                bias,
+            };
+        }
+
+        // Fallback: choose max fused score cluster.
+        let mut best_id = 0usize;
+        let mut best_bias = f32::MIN;
+
+        for (i, b) in fusion.fused_score.iter().enumerate() {
+            if *b > best_bias {
+                best_bias = *b;
+                best_id = i;
+            }
+        }
+
+        // Light bias from memory: if any pattern contains best_id, boost bias slightly.
+        let mut final_bias = best_bias;
+        for pattern in &memory.patterns {
+            if pattern.chain.cluster_ids.contains(&best_id) {
+                final_bias *= 1.05;
+            }
+        }
+
+        RoundaboutClusterSolverResult {
+            chosen_cluster_id: best_id,
+            bias: final_bias,
+        }
+    }
+
+    /// Compressed roundabout cluster pipeline: cross-link + doors + fusion + predictor + smoothing + memory + solver.
+    pub fn roundabout_cluster_pipeline_compressed(
+        &self,
+        web: &KvWeb,
+        num_zones: usize,
+        predictor_cfg: &RoundaboutClusterPredictorConfig,
+        memory: &mut RoundaboutClusterPatternMemory,
+    ) -> Option<Vec<u8>> {
+        let grid = self.build_cross_link_grid(num_zones);
+        let doors = self.build_revolving_doors(num_zones);
+        let mut fusion = self.build_fusion_field(&doors);
+
+        let mut chain = self.run_roundabout_predictor(&fusion, predictor_cfg);
+        self.smooth_roundabout_chain(&mut chain, &fusion, predictor_cfg.smoothing_strength);
+
+        self.update_pattern_memory(memory, &chain);
+        self.apply_roundabout_bias(&mut fusion, memory);
+
+        let result = self.run_roundabout_solver(&fusion, &chain, memory);
+
+        self.compressor.as_ref().map(|c| {
+            c.compress(&(
+                "roundabout_cluster_pipeline",
+                web.nodes.len(),
+                num_zones,
+                predictor_cfg.passes,
+                &grid.cluster_to_nodes,
+                &grid.zone_to_clusters,
+                &fusion.fused_score,
+                &chain.cluster_ids,
+                chain.total_bias,
+                &memory.patterns,
+                result.chosen_cluster_id,
+                result.bias,
+            ))
+        })
+    }
 }
 
 /// Build polygonal KV region metadata for a cluster.
@@ -510,4 +878,5 @@ fn optimize_face_index(
 
     polygon.face_index = blended.round() as u8;
 }
+
 
