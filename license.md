@@ -3029,43 +3029,47 @@ All rights to the design, implementation, evolution, and future upgrades of thes
 
 
 
-This project, including all current and future modules, subsystems, upgrades, 
+This project, including all current and future modules, subsystems, upgrades,
 
-optimizations, security layers, routing engines, geometry systems, compression 
+optimizations, security layers, routing engines, geometry systems, compression
 
-mechanisms, predictors, schedulers, firewalls, and any derivative components 
+mechanisms, predictors, schedulers, firewalls, and any derivative components
 
-thereof (collectively, “Extended Runtime Components”), is hereby licensed under 
+thereof (collectively, “Extended Runtime Components”), is hereby licensed under
 
 the same terms as the main KV‑Webb Runtime license.
 
 
 
-All Extended Runtime Components—including but not limited to: semantic 
+All Extended Runtime Components—including but not limited to: semantic
 
-roundabout routing, multi‑layer heatmaps, zoning systems, drift physics, 
+roundabout routing, multi‑layer heatmaps, zoning systems, drift physics,
 
-pruning physics, dynamic webbing, clustering engines, embedding geometry, 
+pruning physics, dynamic webbing, clustering engines, embedding geometry,
 
-BitDrop\_v2 compression, Hybrid PKM GPU routing, global activity predictor, 
+BitDrop\_v2 compression, Hybrid PKM GPU routing, global activity predictor,
 
-scheduler roundabout pipeline, Semantic Security Layer (SSL), Reverse‑Adversarial 
+scheduler roundabout pipeline, Semantic Security Layer (SSL), Reverse‑Adversarial
 
-Hardening (RAH), Revolving‑Door Firewall, False Door Deception Layer, and any 
+Hardening (RAH), Revolving‑Door Firewall, False Door Deception Layer, and any
 
-future enhancements—are considered integral parts of the KV‑Webb Runtime and are 
+future enhancements—are considered integral parts of the KV‑Webb Runtime and are
 
 covered fully and without limitation by this license.
 
 
 
-No additional restrictions, obligations, or separate licensing terms apply to 
+No additional restrictions, obligations, or separate licensing terms apply to
 
-any Extended Runtime Components. All rights, permissions, protections, and 
+any Extended Runtime Components. All rights, permissions, protections, and
 
-limitations granted by this license automatically extend to all such components, 
+limitations granted by this license automatically extend to all such components,
 
 whether added now or in the future.
 
 
+
+Upgrade \& Enhancement Protection Clause
+
+All security upgrades, enhancements, extensions, and MAX‑tier features introduced in this version—including but not limited to the Rotating Lock Layer, False Key Deception Layer, False Door Deception Layer, multi‑phase adaptive firewall logic, adversarial signature clustering, reverse‑mask generation, semantic roundabout routing, and any derivative or evolved forms of these mechanisms—are fully protected under this Agreement. No update, improvement, or added capability grants the Evaluator any new rights, expanded rights, or implied rights beyond the original evaluation‑only license. All upgraded components remain the exclusive property of the Licensor and are subject to the same restrictions, prohibitions, confidentiality requirements, and non‑commercial limitations as the original Technology. Any attempt to analyze, replicate, bypass, or derive competing functionality from these upgrades constitutes a material breach of this Agreement.
 

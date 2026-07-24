@@ -28,6 +28,7 @@
 //! - Reverse‑weighted firewall threshold adaptation
 //! - Revolving‑door adaptive threshold cycling (MAX‑tier)
 //! - False Door Deception Layer (MAX‑tier)
+//! - Rotating Lock & False Key Layer (MAX‑tier)
 //!
 //! All upgrades are backwards-compatible.
 
@@ -392,6 +393,135 @@ fn false_door_triggered(
     false
 }
 
+// ────────────────────────────────────────────────────────────────
+//   ROTATING LOCK & FALSE KEY LAYER (MAX‑TIER)
+// ────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RotatingLock {
+    pub lock_id: u32,
+    pub key_vector: Vec<f32>,
+    pub phase: u8,
+    pub strength: f32,
+}
+
+impl RotatingLock {
+    pub fn new(lock_id: u32, key_vector: Vec<f32>, phase: u8) -> Self {
+        Self {
+            lock_id,
+            key_vector,
+            phase,
+            strength: 1.0,
+        }
+    }
+
+    pub fn update_phase(&mut self, new_phase: u8, seed: f32) {
+        self.phase = new_phase;
+        self.strength = (self.strength * (1.0 + 0.01 * seed)).min(2.0);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FalseKey {
+    pub key_id: u32,
+    pub decoy_vector: Vec<f32>,
+    pub phase: u8,
+    pub decay: f32,
+}
+
+impl FalseKey {
+    pub fn new(key_id: u32, decoy_vector: Vec<f32>, phase: u8) -> Self {
+        Self {
+            key_id,
+            decoy_vector,
+            phase,
+            decay: 1.0,
+        }
+    }
+
+    pub fn update_phase(&mut self, new_phase: u8, seed: f32) {
+        self.phase = new_phase;
+        self.decay = (self.decay * (1.0 - 0.015 * seed)).max(0.05);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LockKeyLayer {
+    pub locks: Vec<RotatingLock>,
+    pub false_keys: Vec<FalseKey>,
+    pub next_lock_id: u32,
+    pub next_key_id: u32,
+}
+
+impl LockKeyLayer {
+    pub fn new() -> Self {
+        Self {
+            locks: Vec::new(),
+            false_keys: Vec::new(),
+            next_lock_id: 1,
+            next_key_id: 1,
+        }
+    }
+
+    pub fn spawn_lock(&mut self, centroid: &Embedding, phase: u8) {
+        let mut key = centroid.clone();
+        for v in &mut key {
+            *v *= 1.1;
+        }
+        self.locks.push(RotatingLock::new(self.next_lock_id, key, phase));
+        self.next_lock_id += 1;
+    }
+
+    pub fn spawn_false_key(&mut self, centroid: &Embedding, phase: u8) {
+        let mut decoy = centroid.clone();
+        for v in &mut decoy {
+            *v *= 0.6;
+        }
+        self.false_keys.push(FalseKey::new(self.next_key_id, decoy, phase));
+        self.next_key_id += 1;
+    }
+
+    pub fn rotate(&mut self, phase: u8, seed: f32) {
+        for l in &mut self.locks {
+            l.update_phase(phase, seed);
+        }
+        for k in &mut self.false_keys {
+            k.update_phase(phase, seed);
+        }
+    }
+}
+
+fn lock_key_triggered(
+    layer: &LockKeyLayer,
+    new_embedding: &Embedding,
+) -> bool {
+    // If a false key matches strongly, treat as trap.
+    for key in &layer.false_keys {
+        let sim = cosine_similarity(&key.decoy_vector, new_embedding);
+        if sim >= 0.9 * key.decay {
+            return true;
+        }
+    }
+
+    // If no valid lock match, but embedding is close to locks with low strength, treat as suspicious.
+    let mut best_lock_sim = 0.0;
+    let mut best_lock_strength = 0.0;
+
+    for lock in &layer.locks {
+        let sim = cosine_similarity(&lock.key_vector, new_embedding);
+        if sim > best_lock_sim {
+            best_lock_sim = sim;
+            best_lock_strength = lock.strength;
+        }
+    }
+
+    if best_lock_sim < 0.4 && best_lock_strength < 1.2 {
+        return true;
+    }
+
+    false
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FirewallConfig {
     pub mode: FirewallMode,
@@ -407,6 +537,7 @@ pub struct FirewallConfig {
     pub history: FirewallHistory,
     pub revolving: RevolvingDoorState,
     pub false_doors: FalseDoorLayer,
+    pub lock_keys: LockKeyLayer,
 }
 
 impl Default for FirewallConfig {
@@ -425,6 +556,7 @@ impl Default for FirewallConfig {
             history: FirewallHistory::new(256),
             revolving: RevolvingDoorState::new(),
             false_doors: FalseDoorLayer::new(),
+            lock_keys: LockKeyLayer::new(),
         }
     }
 }
@@ -438,6 +570,8 @@ fn revolving_door_step(cfg: &mut FirewallConfig) {
 
     // Rotate false doors with phase
     cfg.false_doors.rotate_doors(phase, seed);
+    // Rotate locks and keys with phase
+    cfg.lock_keys.rotate(phase, seed);
 
     match phase {
         0 => {
@@ -908,6 +1042,21 @@ fn spif_detect(
 
     // False door check first
     if false_door_triggered(&cfg.false_doors, new_embedding) {
+        let (_, var) = compute_embedding_stats(new_embedding);
+        record_attack_signature(
+            &mut cfg,
+            var,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        );
+        return true;
+    }
+
+    // Rotating lock / false key check
+    if lock_key_triggered(&cfg.lock_keys, new_embedding) {
         let (_, var) = compute_embedding_stats(new_embedding);
         record_attack_signature(
             &mut cfg,
@@ -1557,3 +1706,4 @@ impl KvWebSemanticRoundabout for KvWeb {
         }
     }
 }
+
