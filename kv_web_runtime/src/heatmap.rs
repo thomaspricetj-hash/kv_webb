@@ -275,7 +275,11 @@ pub fn build_multi_layer_heatmap(
         // Index map timing
         let idx_start = Instant::now();
         let mut idx_map: Vec<usize> = (0..kv_len).collect();
-        idx_map.sort_by(|a, b| next[*b].partial_cmp(&next[*a]).unwrap_or(std::cmp::Ordering::Equal));
+        idx_map.sort_by(|a, b| {
+            next[*b]
+                .partial_cmp(&next[*a])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         index_maps.push(idx_map);
         index_times_ms.push(idx_start.elapsed().as_millis());
 
@@ -823,5 +827,3 @@ pub fn roundabout_token_pipeline_compressed(
         ))
     })
 }
-
-

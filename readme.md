@@ -1,1052 +1,530 @@
 📄 KV‑Webb Runtime 3.4.1 — README (Tier‑8 Cognitive Substrate Edition)
+Autonomous Polygonal Memory • Multi‑Layer Semantic Geometry • Roundabout Routing • SSL + RAH Defense Matrix • Global Predictor • Hybrid PKM GPU Routing
+KV‑Webb Runtime 3.4.1 — Synthetic Cognitive Infrastructure
+KV‑Webb Runtime 3.4.1 transforms KV‑cache from a passive buffer into a self‑optimizing cognitive substrate built on:
 
-Autonomous Polygonal Memory • Multi‑Layer Heatmaps • Zoning • Hybrid PKM GPU Routing • Semantic Roundabout Routing • SSL + RAH Defense Matrix • Global Predictor • Revolving‑Door + False Door Firewall
+Polygonal semantic geometry
 
+Multi‑layer semantic heatmaps
 
+Drift physics
 
-KV‑Webb Runtime 3.4.1 transforms KV‑cache from a passive buffer into a self‑optimizing cognitive substrate.
+Pruning physics
 
+Dynamic webbing
 
+Semantic clustering
 
-Instead of storing raw transformer vectors, KV‑Webb builds a living semantic geometry engine with:
+Zoning segmentation
 
-
-
-polygonal semantic regions
-
-
-
-multi‑layer heatmaps
-
-
-
-drift physics
-
-
-
-pruning physics
-
-
-
-dynamic webbing
-
-
-
-semantic clustering
-
-
-
-zoning segmentation
-
-
-
-reversible BitDrop\_v2 compression
-
-
+Reversible BitDrop_v2 compression
 
 Hybrid PKM GPU routing
 
+MAX‑Tier Semantic Roundabout Routing
 
+Adaptive GPU daemon scheduling
 
-semantic roundabout routing (NEW)
+Global optimization scheduling
 
-
-
-adaptive GPU daemon scheduling
-
-
-
-global optimization scheduling
-
-
-
-global activity predictor (NEW)
-
-
+Tier‑8 Global Activity Predictor
 
 Semantic Security Layer (SSL) + Reverse‑Adversarial Hardening (RAH)
 
-
-
-Revolving‑Door + False Door Firewall (NEW)
-
-
+Revolving‑Door + False Door Firewall
 
 KV‑Webb is no longer KV‑cache —
-
 it is synthetic cognitive infrastructure.
 
-
-
 ⭐ New in KV‑Webb Runtime 3.4.1 (Tier‑7 + Tier‑8 Upgrade)
-
-🔵 1. Semantic Roundabout Routing (NEW)
-
+🔵 1. MAX‑Tier Semantic Roundabout Routing (NEW)
 A full semantic roundabout engine modeled after real‑world traffic systems:
 
+Packets enter a semantic hub
 
+Multiple exits evaluated across semantic zones
 
-packets enter a semantic hub
+Dual‑layer scoring (semantic + geometry)
 
+Circulation when unstable
 
+Priority escalation when stuck
 
-evaluate multiple exits
+Stability reinforcement
 
+Zone‑hinting from historical success
 
+Predictor‑guided exit weighting
 
-score exits using multi‑layer geometry
+SSL‑aware routing bias
 
-
-
-circulate when unstable
-
-
-
-escalate priority if stuck
-
-
-
-reinforce successful exits
-
-
-
-avoid unstable zones automatically
-
-
+GPU‑ready routing packets
 
 This replaces brittle single‑exit routing with flow‑based cognitive routing, improving:
 
+Routing stability
 
-
-routing stability
-
-
-
-drift resilience
-
-
+Drift resilience
 
 GPU load distribution
 
+Long‑range coherence
 
+Roundabout routing is now embedded across:
 
-long‑range coherence
+GraphOps
 
+Embeddings
 
+Heatmaps
 
-Roundabout routing is now a core part of Hybrid PKM GPU routing.
+Pruning
 
+Drift physics
 
+Dynamic webbing
 
-🔵 2. Multi‑Layer Heatmaps + Zoning + Auto‑Optimizer
+Cluster geometry
 
+Scheduler fusion
+
+🔵 2. Multi‑Layer Heatmaps + Zoning + Auto‑Optimizer (Upgraded)
 KV‑Webb now includes a multi‑resolution semantic heatmap engine:
 
+Polygon‑weighted base heatmaps
 
+Multi‑layer smoothing
 
-polygon‑weighted base heatmaps
+Per‑layer scratch pads
 
+Per‑layer index maps
 
+Per‑layer zoning (IDs, ranges, centroid nodes)
 
-multi‑layer smoothing
+Zone complexity scoring
 
-
-
-per‑layer scratch pads
-
-
-
-per‑layer index maps
-
-
-
-per‑layer zoning (IDs, ranges, centroid nodes)
-
-
-
-zone complexity scoring
-
-
-
-full performance metrics
-
-
+Full performance metrics
 
 The auto‑optimizer tunes:
 
+Smoothing strength
 
+Routing depth
 
-smoothing strength
+Semantic vs geometric weighting
 
-
-
-routing depth
-
-
-
-semantic vs geometric weighting
-
-
-
-compression‑aware region selection
-
-
+Compression‑aware region selection
 
 Heatmaps directly drive:
 
-
-
-BitDrop\_v2 collapse ordering
-
-
+BitDrop_v2 collapse ordering
 
 BD3D folding boundaries
 
-
-
 Hybrid PKM routing
 
+Transformer mask construction
 
-
-transformer mask construction
-
-
+Predictor‑weighted heatmap bias
 
 🔵 3. Tier‑6 Hybrid PKM GPU Routing (Refined)
-
 The GPU routing engine now uses:
 
+Heatmap‑driven region selection
 
+Zoning‑aware routing
 
-heatmap‑driven region selection
+Polygon‑weighted exits
 
+Drift‑aware re‑circulation
 
+Hybrid semantic + load priority routing
 
-zoning‑aware routing
+Adaptive PKM daemon scheduling
 
+Multi‑stream CUDA execution
 
-
-polygon‑weighted exits
-
-
-
-drift‑aware re‑circulation
-
-
-
-hybrid semantic + load priority routing
-
-
-
-adaptive PKM daemon scheduling
-
-
-
-semantic roundabout routing (NEW)
-
-
-
-SM‑aware + warp‑aware region partitioning
-
-
-
-multi‑stream CUDA execution
-
-
+Roundabout routing (NEW)
 
 The GPU becomes an autonomous routing brain.
 
-
-
-🔵 4. Tier‑6 Global Optimization Scheduler (Upgraded)
-
+🔵 4. Tier‑6/8 Global Optimization Scheduler (Upgraded)
 The scheduler continuously tunes:
 
+Drift physics
 
+Pruning thresholds
 
-drift physics
+Dynamic webbing strength
 
+Semantic clustering radius + face index
 
-
-pruning thresholds
-
-
-
-dynamic webbing strength
-
-
-
-semantic clustering radius + face index
-
-
-
-polygon geometry parameters
-
-
+Polygon geometry parameters
 
 BFS depth + PageRank damping
 
+Heatmap smoothing strength + layer count
 
+Zoning thresholds + zone complexity weighting
 
-heatmap smoothing strength + layer count
-
-
-
-zoning thresholds + zone complexity weighting
-
-
-
-transformer mask density + routing depth
-
-
+Transformer mask density + routing depth
 
 GPU block size + batching + stream count
 
-
-
 Hybrid PKM daemon count
 
+Roundabout routing thresholds (NEW)
 
+Predictor‑guided subsystem weighting (NEW)
 
-roundabout routing thresholds (NEW)
+SSL threshold hardening (NEW)
 
+The scheduler acts as a cognitive orchestrator, coordinating all subsystems.
 
+🧠 Tier‑6 Semantic Memory
+Parallel token clustering
 
-semantic vs load priority weighting
+Centroid‑based node representation
 
+Polygonal semantic regions
 
+Semantic edges
 
-predictor‑guided subsystem weighting (NEW)
+Branch‑aware nodes
 
+Compressed token lists (NUMBIN / BD3D)
 
+Polygon‑aware centroid + radius calculations
 
-KV‑Webb becomes fully autonomous, GPU‑coordinated, and heatmap‑driven.
-
-
-
-🧠 Semantic Memory (Tier‑6)
-
-parallel token clustering
-
-
-
-centroid‑based node representation
-
-
-
-polygonal semantic regions
-
-
-
-semantic edges
-
-
-
-branch‑aware nodes
-
-
-
-compressed token lists (NUMBIN / BD3D)
-
-
-
-polygon‑aware centroid + radius calculations
-
-
-
-scheduler‑tuned semantic thresholds
-
-
+Scheduler‑tuned semantic thresholds
 
 GPU‑accelerated region routing
 
+Heatmap‑weighted semantic relevance
 
+Predictor‑weighted semantic bias
 
-heatmap‑weighted semantic relevance
+🕸 Tier‑6 Dynamic Webbing
+Parallel edge strengthening
 
+Parallel decay
 
+Recency‑based linking
 
-🕸 Dynamic Webbing (Tier‑6)
+Edge normalization
 
-parallel edge strengthening
+Branch stabilization
 
+Polygon‑aware reinforcement
 
+Compressed BFS / PageRank packets
 
-parallel decay
-
-
-
-recency‑based linking
-
-
-
-edge normalization
-
-
-
-branch stabilization
-
-
-
-polygon‑aware reinforcement
-
-
-
-compressed BFS / PageRank packets
-
-
-
-scheduler‑tuned strengthen/decay rates
-
-
+Scheduler‑tuned strengthen/decay rates
 
 GPU‑aware density tuning
 
+Heatmap + zoning‑aware reinforcement
 
+Predictor‑guided reinforcement (NEW)
 
-heatmap + zoning‑aware reinforcement
+⏳ Tier‑6 Drift Physics
+Parallel drift
 
+Linear/exponential decay
 
+Reinforcement on access
 
-predictor‑guided reinforcement (NEW)
+Edge drift
 
+Per‑branch drift
 
+Radius‑weighted drift modulation
 
-⏳ Drift Physics (Tier‑6)
+Compressed drift packets
 
-parallel drift
+Scheduler‑tuned decay + reinforcement
 
+Heatmap‑modulated drift (hot zones resist decay)
 
+Predictor‑guided drift stabilization (NEW)
 
-linear/exponential decay
+✂️ Tier‑6 Pruning System
+Parallel score decay
 
+Parallel node pruning
 
+Parallel edge pruning
 
-reinforcement on access
+Orphan cleanup
 
+Polygon‑aware pruning
 
-
-edge drift
-
-
-
-per‑branch drift
-
-
-
-radius‑weighted drift modulation
-
-
-
-compressed drift packets
-
-
-
-scheduler‑tuned decay + reinforcement
-
-
-
-heatmap‑modulated drift (hot zones resist decay)
-
-
-
-predictor‑guided drift stabilization (NEW)
-
-
-
-✂️ Pruning System (Tier‑6)
-
-parallel score decay
-
-
-
-parallel node pruning
-
-
-
-parallel edge pruning
-
-
-
-orphan cleanup
-
-
-
-polygon‑aware pruning
-
-
-
-scheduler‑tuned thresholds
-
-
+Scheduler‑tuned thresholds
 
 GPU‑accelerated pruning masks
 
+Zone‑aware pruning (cold zones pruned first)
 
+Predictor‑protected nodes (NEW)
 
-zone‑aware pruning (cold zones pruned first)
+Predictor prevents pruning of future‑critical nodes.
 
+🔍 Tier‑6 Graph Operations
+Parallel BFS
 
+Polygon‑weighted BFS
 
-predictor‑protected nodes (NEW)
+Parallel PageRank
 
+Branch‑weighted relevance
 
+Polygon‑aware ranking
 
-predictor prevents pruning of future‑critical nodes
+Compressed graph packets
 
-
-
-🔍 Graph Operations (Tier‑6)
-
-parallel BFS
-
-
-
-polygon‑weighted BFS
-
-
-
-parallel PageRank
-
-
-
-branch‑weighted relevance
-
-
-
-polygon‑aware ranking
-
-
-
-compressed graph packets
-
-
-
-scheduler‑tuned BFS depth + damping
-
-
+Scheduler‑tuned BFS depth + damping
 
 GPU‑balanced BFS routing
 
+Heatmap + zoning‑guided relevance scoring
 
+Predictor‑weighted relevance (NEW)
 
-heatmap + zoning‑guided relevance scoring
+🔥 Tier‑7 Multi‑Layer Heatmaps
+Multi‑layer semantic heatmaps
 
+Drift‑adjusted stability heatmaps
 
+Polygon‑weighted smoothing
 
-predictor‑weighted relevance (NEW)
+Per‑layer scratch pads
 
+Per‑layer index maps
 
+Per‑layer zoning
 
-🔥 Heatmaps (Tier‑7)
+Compressed heatmaps
 
-multi‑layer semantic heatmaps
-
-
-
-drift‑adjusted stability heatmaps
-
-
-
-polygon‑weighted smoothing
-
-
-
-per‑layer scratch pads
-
-
-
-per‑layer index maps
-
-
-
-per‑layer zoning
-
-
-
-compressed heatmaps
-
-
-
-scheduler‑tuned smoothing + layer count
-
-
+Scheduler‑tuned smoothing + layer count
 
 GPU‑accelerated scoring
 
+Predictor‑weighted heatmap bias (NEW)
 
+🔗 Tier‑6 + Tier‑7 Transformer Integration
+Region‑based attention masks
 
-auto‑optimizer for heatmap parameters
-
-
-
-predictor‑weighted heatmap bias (NEW)
-
-
-
-🔗 Transformer Integration (Tier‑6 + Tier‑7)
-
-region‑based attention masks
-
-
-
-polygon‑aware GPU mask building
-
-
+Polygon‑aware GPU mask building
 
 KV subset extraction
 
-
-
-branch‑aware routing
-
-
+Branch‑aware routing
 
 Hybrid PKM routing
 
+Roundabout routing (NEW)
 
-
-roundabout routing (NEW)
-
-
-
-adaptive daemon scheduling
-
-
+Adaptive daemon scheduling
 
 SM‑aware partitioning
 
+Warp‑aware concurrency
 
+Multi‑stream CUDA execution
 
-warp‑aware concurrency
+Dynamic batch scaling
 
+Heatmap + zoning‑driven mask construction
 
-
-multi‑stream CUDA execution
-
-
-
-dynamic batch scaling
-
-
-
-heatmap + zoning‑driven mask construction
-
-
-
-predictor‑guided KV subset selection (NEW)
-
-
+Predictor‑guided KV subset selection (NEW)
 
 Performance:
 
+Mask‑building speed: 2×–15×
 
-
-mask‑building speed: 2×–15×
-
-
-
-transformer throughput: 1.3×–3×
-
-
+Transformer throughput: 1.3×–3×
 
 GPU utilization: 70–95%
 
+Routing stability: 40–70%
 
+Drift‑resilience: 2×
 
-routing stability: 40–70%
+Compression efficiency: heat‑driven BitDrop_v2 collapse
 
-
-
-drift‑resilience: 2×
-
-
-
-compression efficiency: heat‑driven BitDrop\_v2 collapse
-
-
-
-🛡 Semantic Security Layer (SSL) + RAH (NEW)
-
-SSL is KV‑Webb’s autonomous multi‑attack defense matrix.
-
-
-
-Includes:
-
-
+🛡 Semantic Security Layer (SSL) + Reverse‑Adversarial Hardening (RAH)
+SSL includes:
 
 SPIF — Prompt‑Injection Firewall
 
-
-
 DDF — Drift‑Delta Firewall
-
-
 
 CHF — Context‑Hijack Firewall
 
-
-
 PIF — Polarity‑Inversion Firewall
-
-
 
 AEF — Adversarial Embedding Firewall
 
-
-
 ZFF — Zone‑Flooding Firewall
-
-
 
 GIF — Geometry‑Integrity Firewall
 
-
-
 Powered by:
-
-
 
 Auto‑Threat Detection Engine (ATDE)
 
+Geometry‑aware threat scoring
 
-
-hybrid detect/log/block/adapt
-
-
-
-geometry‑aware threat scoring
-
-
-
-autonomous threshold tuning
-
-
+Autonomous threshold tuning
 
 🔥 Reverse‑Adversarial Hardening (RAH)
-
 RAH captures attacker signatures:
 
+Variance anomalies
 
+Heatmap spikes
 
-variance anomalies
+Zone coherence breaks
 
+Root similarity drift
 
+Polarity inversion
 
-heatmap spikes
-
-
-
-zone coherence breaks
-
-
-
-root similarity drift
-
-
-
-polarity inversion
-
-
-
-geometry‑break patterns
-
-
+Geometry‑break patterns
 
 Then generates:
 
+Global reverse masks
 
+Zone‑aware reverse masks
 
-global reverse masks
-
-
-
-zone‑aware reverse masks
-
-
-
-adversarial clusters
-
-
+Adversarial clusters
 
 These masks harden SSL thresholds using the attacker’s own pattern.
 
-
-
-KV‑Webb doesn’t just block attacks —
-
-it learns them, compresses them, and reflects them back internally as adaptive defenses.
-
-
-
-🔒 Revolving‑Door + False Door Firewall (MAX‑Tier Security Upgrade)
-
-KV‑Webb now includes the Revolving‑Door + False Door Firewall, a MAX‑tier security enhancement engineered to eliminate the predictability of traditional firewalls.
-
-
-
+🔒 Revolving‑Door + False Door Firewall (MAX‑Tier Security)
 Revolving‑Door Defense
+Rotates internal defense phases
 
-continuously rotates internal defense phases
+Shifts semantic‑geometry weighting
 
+Adapts thresholds using adversarial history
 
-
-shifts semantic‑geometry weighting
-
-
-
-adapts thresholds using adversarial history
-
-
-
-prevents fingerprinting and replay attacks
-
-
+Prevents fingerprinting and replay attacks
 
 False Door Deception Layer
+Generates synthetic, geometry‑valid decoy entry points
 
-generates synthetic, geometry‑valid decoy entry points
+Appears legitimate but leads nowhere
 
+Absorbs malicious embeddings
 
+Disrupts fingerprinting attempts
 
-appears legitimate but leads nowhere internally
+Feeds signatures back into revolving‑door system
 
+This creates a non‑stationary, self‑hardening, misdirection‑driven security perimeter.
 
+🔮 Tier‑8 Global Activity Predictor
+Predictor adds foresight:
 
-absorbs malicious embeddings
+Computes activity scores
 
+Ranks top‑K predicted‑active nodes
 
+Updates predictor memory
 
-disrupts fingerprinting attempts
+Emits GPU‑ready packets
 
-
-
-feeds signatures back into revolving‑door system
-
-
-
-Together, these upgrades create a non‑stationary, self‑hardening, misdirection‑driven security perimeter.
-
-
-
-🔮 Global Activity Predictor (Tier‑8 Foresight Layer)
-
-The predictor adds foresight to KV‑Webb:
-
-
-
-Inputs:
-
-
-
-node scores
-
-
-
-drift state
-
-
-
-dynamic web weights
-
-
-
-polygon geometry
-
-
-
-heatmap intensity
-
-
-
-historical activity patterns
-
-
-
-Behavior:
-
-
-
-computes activity scores
-
-
-
-ranks top‑K predicted‑active nodes
-
-
-
-updates predictor memory
-
-
-
-emits GPU‑ready packets
-
-
-
-feeds predictor scores into:
-
-
-
-dynamic webbing
-
-
-
-drift physics
-
-
-
-pruning protection
-
-
-
-cluster stabilization
-
-
-
-graph ops
-
-
-
-heatmaps
-
-
-
-scheduler fusion
-
-
+Guides dynamic webbing, drift physics, pruning, clustering, graph ops, heatmaps, scheduler fusion
 
 Effects:
 
+2.7×–5.4× subsystem coordination
 
+Fewer false prunes
 
-2.7×–5.4× improvement in subsystem coordination
+More stable routing
 
+True cognitive behavior: anticipation, not reaction
 
-
-fewer false prunes
-
-
-
-more stable routing
-
-
-
-true cognitive behavior: anticipation, not reaction
-
-
-
-🚀 Why KV‑Webb Matters (Updated)
-
+🚀 Why KV‑Webb Matters
 Traditional KV‑cache:
 
+Stores raw vectors
 
+Forgets instantly
 
-stores raw vectors
+Has no structure
 
+Cannot route
 
-
-forgets instantly
-
-
-
-has no structure
-
-
-
-has no meaning
-
-
-
-cannot represent multiple interpretations
-
-
-
-cannot route geometrically
-
-
-
-cannot self‑optimize
-
-
+Cannot self‑optimize
 
 KV‑Webb 3.4.1:
 
+Stores semantic nodes
 
+Builds dynamic edges
 
-stores semantic nodes
+Forms polygonal regions
 
+Drifts meaning
 
+Prunes stale meaning
 
-builds dynamic edges
+Reinforces active concepts
 
+Retrieves meaning
 
+Supports multi‑branch interpretation
 
-forms polygonal regions
+Compresses memory by 82–96%
 
+Accelerates routing via Hybrid PKM
 
+Routes based on geometry + semantics + stability + load
 
-drifts meaning over time
+Self‑optimizes across all subsystems
 
+Uses roundabout routing for stability
 
+Uses adaptive GPU daemons for throughput
 
-prunes stale meaning
+Uses multi‑layer heatmaps + zoning for fine‑grained routing
 
+Auto‑tunes smoothing, routing depth, compression behavior
 
+Protects itself with SSL + RAH + Revolving‑Door + False Doors
 
-reinforces active concepts
+Predicts future graph activity
 
-
-
-retrieves meaning
-
-
-
-supports multi‑branch interpretation
-
-
-
-compresses memory by 82–96%
-
-
-
-accelerates routing via Hybrid PKM
-
-
-
-routes based on geometry + semantics + stability + load
-
-
-
-self‑optimizes across all subsystems
-
-
-
-uses roundabout routing for stability
-
-
-
-uses adaptive GPU daemons for throughput
-
-
-
-uses multi‑layer heatmaps + zoning for fine‑grained routing
-
-
-
-auto‑tunes smoothing, routing depth, compression behavior
-
-
-
-protects itself with SSL + RAH + Revolving‑Door + False Doors
-
-
-
-predicts future graph activity
-
-
-
-KV‑Webb is no longer a KV‑cache replacement —
-
+KV‑Webb is not a KV‑cache —
 it is synthetic cognitive infrastructure.
 
+🛡 NO‑LOOPHOLE PROTECTION CLAUSE (ADD TO LICENSE)
+All components, algorithms, subsystems, geometry models, routing engines, roundabout logic, predictor mechanisms, compression formats, firewall structures, and cognitive orchestration methods described in KV‑Webb Runtime 3.4.1 are proprietary intellectual property belonging exclusively to Thomas.
+
+No individual, organization, or system is permitted to:
+
+copy
+
+modify
+
+replicate
+
+redistribute
+
+reverse‑engineer
+
+derive from
+
+train models on
+
+integrate into commercial or non‑commercial systems
+
+or use any portion of this architecture
+
+without explicit written permission from Thomas.
+
+All rights reserved. No exceptions. No loopholes. No derivative rights granted.

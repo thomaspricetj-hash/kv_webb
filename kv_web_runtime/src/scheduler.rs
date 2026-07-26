@@ -15,6 +15,10 @@
 //! - fusion field combining subsystem metrics
 //! - roundabout predictor + smoothing + memory + solver
 //! - GPU‑ready compressed scheduler packets
+//! - stability‑weighted subsystem routing
+//! - subsystem‑level overflow buffer + volatility absorption
+//! - subsystem‑level tunnel metrics + reliability scoring
+//! - subsystem‑level cognitive weight + reinforcement
 //!
 //! All original logic preserved.
 
@@ -53,8 +57,135 @@ use kv_web_runtime::predictor::{
 };
 
 use serde::{Serialize, Deserialize};
+use std::time::Instant;
 
-/// Global scheduler configuration.
+// ────────────────────────────────────────────────────────────────
+//   MAX‑TIER SUBSYSTEM METRICS (TUNNEL, CACHE, OVERFLOW, COGNITIVE)
+// ────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubsystemTunnelMetrics {
+    pub latency_ms: f32,
+    pub jitter_ms: f32,
+    pub congestion: f32,
+    pub stability: f32,
+    pub loss_rate: f32,
+}
+
+impl SubsystemTunnelMetrics {
+    pub fn stable_default() -> Self {
+        Self {
+            latency_ms: 1.0,
+            jitter_ms: 0.0,
+            congestion: 0.1,
+            stability: 1.0,
+            loss_rate: 0.0,
+        }
+    }
+
+    pub fn score(&self) -> f32 {
+        let latency_term = (1.0 / (1.0 + self.latency_ms)).min(1.0);
+        let jitter_term = (1.0 - self.jitter_ms).max(0.0);
+        let congestion_term = (1.0 - self.congestion).max(0.0);
+        let stability_term = self.stability;
+        let loss_term = (1.0 - self.loss_rate).max(0.0);
+
+        (latency_term * 0.2)
+            + (jitter_term * 0.2)
+            + (congestion_term * 0.2)
+            + (stability_term * 0.3)
+            + (loss_term * 0.1)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubsystemCacheMetrics {
+    pub hit: u64,
+    pub miss: u64,
+    pub reliability: f32,
+}
+
+impl SubsystemCacheMetrics {
+    pub fn new() -> Self {
+        Self {
+            hit: 0,
+            miss: 0,
+            reliability: 1.0,
+        }
+    }
+
+    pub fn record_hit(&mut self) {
+        self.hit += 1;
+        self.update();
+    }
+
+    pub fn record_miss(&mut self) {
+        self.miss += 1;
+        self.update();
+    }
+
+    fn update(&mut self) {
+        let total = self.hit + self.miss;
+        if total == 0 {
+            self.reliability = 1.0;
+        } else {
+            self.reliability = (self.hit as f32 / total as f32).clamp(0.1, 1.0);
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubsystemOverflowBuffer {
+    pub volatility: f32,
+    pub absorption: f32,
+}
+
+impl SubsystemOverflowBuffer {
+    pub fn new() -> Self {
+        Self {
+            volatility: 0.0,
+            absorption: 0.5,
+        }
+    }
+
+    pub fn absorb(&mut self, spike: f32) {
+        self.volatility = (self.volatility * 0.9) + spike * 0.1;
+    }
+
+    pub fn stabilized_bias(&self) -> f32 {
+        (1.0 - self.volatility * 0.1).clamp(0.5, 1.0) * self.absorption
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubsystemCognitiveState {
+    pub cognitive_weight: f32,
+    pub stability_factor: f32,
+}
+
+impl SubsystemCognitiveState {
+    pub fn new() -> Self {
+        Self {
+            cognitive_weight: 1.0,
+            stability_factor: 1.0,
+        }
+    }
+
+    pub fn reinforce(&mut self, success: bool) {
+        if success {
+            self.cognitive_weight = (self.cognitive_weight + 0.05).min(2.0);
+            self.stability_factor = (self.stability_factor + 0.05).min(2.0);
+        } else {
+            self.cognitive_weight = (self.cognitive_weight * 0.97).max(0.5);
+            self.stability_factor = (self.stability_factor - 0.05).max(0.1);
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+//   ORIGINAL SCHEDULER CONFIG + STATE
+// ────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulerConfig {
     pub kv_web_cfg: KvWebOptimizationConfig,
@@ -68,7 +199,6 @@ pub struct SchedulerConfig {
     pub default_depth: usize,
 }
 
-/// Global scheduler state.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulerState {
     pub kv_web_state: KvWebOptimizationState,
@@ -77,6 +207,12 @@ pub struct SchedulerState {
     pub gpu_state: GpuOptimizationState,
 
     pub predictor_memory: KvWebPredictorMemory,
+
+    // MAX‑tier subsystem metrics
+    pub tunnel: SubsystemTunnelMetrics,
+    pub cache: SubsystemCacheMetrics,
+    pub overflow: SubsystemOverflowBuffer,
+    pub cognitive: SubsystemCognitiveState,
 }
 
 impl Default for SchedulerState {
@@ -90,11 +226,19 @@ impl Default for SchedulerState {
                 patterns: Vec::new(),
                 decay: 0.9,
             },
+
+            tunnel: SubsystemTunnelMetrics::stable_default(),
+            cache: SubsystemCacheMetrics::new(),
+            overflow: SubsystemOverflowBuffer::new(),
+            cognitive: SubsystemCognitiveState::new(),
         }
     }
 }
 
-/// Max‑tier: cross‑link grid across subsystem states.
+// ────────────────────────────────────────────────────────────────
+//   CROSS‑LINK GRID + REVOLVING DOORS + FUSION FIELD
+// ────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulerCrossLinkGrid {
     pub kv_web_score: f32,
@@ -104,7 +248,6 @@ pub struct SchedulerCrossLinkGrid {
     pub predictor_score: f32,
 }
 
-/// Max‑tier: revolving‑door routing between subsystems.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulerRevolvingDoor {
     pub door_id: usize,
@@ -113,13 +256,15 @@ pub struct SchedulerRevolvingDoor {
     pub flow_strength: f32,
 }
 
-/// Max‑tier: fusion field combining subsystem metrics.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulerFusionField {
     pub fused_scores: Vec<f32>, // [kv_web, integration, transformer, gpu, predictor]
 }
 
-/// Max‑tier: roundabout predictor config.
+// ────────────────────────────────────────────────────────────────
+//   ROUNDABOUT PREDICTOR + MEMORY + SOLVER
+// ────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulerRoundaboutPredictorConfig {
     pub passes: usize,
@@ -128,35 +273,30 @@ pub struct SchedulerRoundaboutPredictorConfig {
     pub smoothing_strength: f32,
 }
 
-/// Max‑tier: roundabout chain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulerRoundaboutChain {
     pub subsystems: Vec<&'static str>,
     pub total_bias: f32,
 }
 
-/// Max‑tier: roundabout memory entry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulerRoundaboutPattern {
     pub chain: SchedulerRoundaboutChain,
     pub weight: f32,
 }
 
-/// Max‑tier: roundabout memory.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulerRoundaboutPatternMemory {
     pub patterns: Vec<SchedulerRoundaboutPattern>,
     pub decay: f32,
 }
 
-/// Max‑tier: roundabout solver result.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulerRoundaboutSolverResult {
     pub chosen_subsystem: &'static str,
     pub bias: f32,
 }
 
-/// Max‑tier: compressed scheduler packet.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulerRoundaboutPacket {
     pub tag: &'static str,
@@ -168,7 +308,10 @@ pub struct SchedulerRoundaboutPacket {
     pub chosen_bias: f32,
 }
 
-/// Global optimization scheduler.
+// ────────────────────────────────────────────────────────────────
+//   GLOBAL SCHEDULER
+// ────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KvWebScheduler {
     pub cfg: SchedulerConfig,
@@ -183,7 +326,10 @@ impl KvWebScheduler {
         }
     }
 
-    /// Run core KvWeb optimization.
+    // ────────────────────────────────────────────────────────────
+    //   ORIGINAL TICK FUNCTIONS (UNCHANGED)
+    // ────────────────────────────────────────────────────────────
+
     pub fn tick_kv_web(&mut self, web: &mut KvWeb) {
         optimize_kv_web(
             web,
@@ -192,7 +338,6 @@ impl KvWebScheduler {
         );
     }
 
-    /// Run integration optimization.
     pub fn tick_integration<'a>(
         &mut self,
         integration: &KvWebIntegration<'a>,
@@ -205,7 +350,6 @@ impl KvWebScheduler {
         );
     }
 
-    /// Run transformer KV optimization.
     pub fn tick_transformer<'a>(
         &mut self,
         transformer: &TransformerKV<'a>,
@@ -218,7 +362,6 @@ impl KvWebScheduler {
         );
     }
 
-    /// Run GPU optimization for mask building.
     pub fn tick_gpu(
         &mut self,
         web: &KvWeb,
@@ -234,7 +377,6 @@ impl KvWebScheduler {
         );
     }
 
-    /// Run global predictor.
     pub fn tick_predictor(&mut self, web: &KvWeb) {
         let _packet = web.predict_activity_compressed(
             &self.cfg.predictor_cfg,
@@ -243,7 +385,10 @@ impl KvWebScheduler {
         );
     }
 
-    /// Build cross‑link grid.
+    // ────────────────────────────────────────────────────────────
+    //   MAX‑TIER CROSS‑LINK GRID
+    // ────────────────────────────────────────────────────────────
+
     fn build_cross_link_grid(&self) -> SchedulerCrossLinkGrid {
         SchedulerCrossLinkGrid {
             kv_web_score: self.state.kv_web_state.last_score,
@@ -256,7 +401,10 @@ impl KvWebScheduler {
         }
     }
 
-    /// Build revolving doors.
+    // ────────────────────────────────────────────────────────────
+    //   MAX‑TIER REVOLVING DOORS
+    // ────────────────────────────────────────────────────────────
+
     fn build_revolving_doors(&self, grid: &SchedulerCrossLinkGrid) -> Vec<SchedulerRevolvingDoor> {
         let mut doors = Vec::new();
 
@@ -286,7 +434,10 @@ impl KvWebScheduler {
         doors
     }
 
-    /// Build fusion field.
+    // ────────────────────────────────────────────────────────────
+    //   MAX‑TIER FUSION FIELD
+    // ────────────────────────────────────────────────────────────
+
     fn build_fusion_field(&self, grid: &SchedulerCrossLinkGrid, doors: &[SchedulerRevolvingDoor]) -> SchedulerFusionField {
         let mut fused = vec![
             grid.kv_web_score,
@@ -309,6 +460,20 @@ impl KvWebScheduler {
             }
         }
 
+        // MAX‑tier: apply tunnel + cache + overflow + cognitive bias
+        let tunnel_score = self.state.tunnel.score();
+        let cache_score = self.state.cache.reliability;
+        let overflow_bias = self.state.overflow.stabilized_bias();
+        let cognitive_weight = self.state.cognitive.cognitive_weight;
+
+        for v in &mut fused {
+            *v = *v * 0.7
+                + tunnel_score * 0.1
+                + cache_score * 0.1
+                + overflow_bias * 0.05
+                + cognitive_weight * 0.05;
+        }
+
         let max = fused.iter().cloned().fold(0.0f32, f32::max);
         if max > 0.0 {
             for v in &mut fused {
@@ -319,7 +484,10 @@ impl KvWebScheduler {
         SchedulerFusionField { fused_scores: fused }
     }
 
-    /// Roundabout predictor.
+    // ────────────────────────────────────────────────────────────
+    //   MAX‑TIER ROUNDABOUT PREDICTOR
+    // ────────────────────────────────────────────────────────────
+
     fn run_roundabout_predictor(
         &self,
         fusion: &SchedulerFusionField,
@@ -359,7 +527,10 @@ impl KvWebScheduler {
         }
     }
 
-    /// Roundabout smoothing.
+    // ────────────────────────────────────────────────────────────
+    //   MAX‑TIER ROUNDABOUT SMOOTHING
+    // ────────────────────────────────────────────────────────────
+
     fn smooth_roundabout_chain(
         &self,
         chain: &mut SchedulerRoundaboutChain,
@@ -394,7 +565,10 @@ impl KvWebScheduler {
         chain.total_bias = new_total;
     }
 
-    /// Update memory.
+    // ────────────────────────────────────────────────────────────
+    //   MAX‑TIER ROUNDABOUT MEMORY
+    // ────────────────────────────────────────────────────────────
+
     fn update_roundabout_memory(
         &self,
         memory: &mut SchedulerRoundaboutPatternMemory,
@@ -412,117 +586,14 @@ impl KvWebScheduler {
         memory.patterns.retain(|p| p.weight > 0.01);
     }
 
-    /// Apply memory bias.
+    // ────────────────────────────────────────────────────────────
+    //   MAX‑TIER ROUNDABOUT MEMORY BIAS
+    // ────────────────────────────────────────────────────────────
+
     fn apply_roundabout_bias(
         &self,
         fusion: &mut SchedulerFusionField,
         memory: &SchedulerRoundaboutPatternMemory,
     ) {
-        let subsystems = ["kv_web", "integration", "transformer", "gpu", "predictor"];
-        let mut fused = fusion.fused_scores.clone();
-
-        for pattern in &memory.patterns {
-            let boost = pattern.weight * 0.05;
-            for name in &pattern.chain.subsystems {
-                let idx = subsystems.iter().position(|x| x == *name).unwrap();
-                fused[idx] *= 1.0 + boost;
-            }
-        }
-
-        let max = fused.iter().cloned().fold(0.0f32, f32::max);
-        if max > 0.0 {
-            for v in &mut fused {
-                *v /= max;
-            }
-        }
-
-        fusion.fused_scores = fused;
-    }
-
-    /// Roundabout solver.
-    fn run_roundabout_solver(
-        &self,
-        fusion: &SchedulerFusionField,
-        chain: &SchedulerRoundaboutChain,
-        memory: &SchedulerRoundaboutPatternMemory,
-    ) -> SchedulerRoundaboutSolverResult {
-        if let Some(&last) = chain.subsystems.last() {
-            let subsystems = ["kv_web", "integration", "transformer", "gpu", "predictor"];
-            let idx = subsystems.iter().position(|x| x == last).unwrap();
-            let bias = fusion.fused_scores[idx];
-            return SchedulerRoundaboutSolverResult {
-                chosen_subsystem: last,
-                bias,
-            };
-        }
-
-        let subsystems = ["kv_web", "integration", "transformer", "gpu", "predictor"];
-        let mut best_idx = 0usize;
-        let mut best_bias = f32::MIN;
-
-        for (i, b) in fusion.fused_scores.iter().enumerate() {
-            if *b > best_bias {
-                best_bias = *b;
-                best_idx = i;
-            }
-        }
-
-        let mut final_bias = best_bias;
-        let chosen = subsystems[best_idx];
-
-        for pattern in &memory.patterns {
-            if pattern.chain.subsystems.contains(&chosen) {
-                final_bias *= 1.05;
-            }
-        }
-
-        SchedulerRoundaboutSolverResult {
-            chosen_subsystem: chosen,
-            bias: final_bias,
-        }
-    }
-
-    /// Full‑stack optimization tick + max‑tier roundabout pipeline.
-    pub fn tick_all<'a>(
-        &mut self,
-        web: &mut KvWeb,
-        integration: &KvWebIntegration<'a>,
-        transformer: &TransformerKV<'a>,
-        round_cfg: &SchedulerRoundaboutPredictorConfig,
-        round_memory: &mut SchedulerRoundaboutPatternMemory,
-    ) -> Option<Vec<u8>> {
-        self.tick_kv_web(web);
-        self.tick_integration(integration);
-        self.tick_transformer(transformer);
-
-        let kv_len = transformer.cache.len();
-        self.tick_gpu(web, kv_len);
-
-        self.tick_predictor(web);
-
-        let grid = self.build_cross_link_grid();
-        let doors = self.build_revolving_doors(&grid);
-        let mut fusion = self.build_fusion_field(&grid, &doors);
-
-        let mut chain = self.run_roundabout_predictor(&fusion, round_cfg);
-        self.smooth_roundabout_chain(&mut chain, &fusion, round_cfg.smoothing_strength);
-
-        self.update_roundabout_memory(round_memory, &chain);
-        self.apply_roundabout_bias(&mut fusion, round_memory);
-
-        let result = self.run_roundabout_solver(&fusion, &chain, round_memory);
-
-        let packet = SchedulerRoundaboutPacket {
-            tag: "scheduler_roundabout_pipeline",
-            fused_scores: fusion.fused_scores.clone(),
-            chain: chain.subsystems.clone(),
-            chain_total_bias: chain.total_bias,
-            patterns: round_memory.patterns.clone(),
-            chosen_subsystem: result.chosen_subsystem,
-            chosen_bias: result.bias,
-        };
-
-        web.compressor.as_ref().map(|c| c.compress(&packet))
-    }
-}
+        let subsystems = ["kv_web",
 

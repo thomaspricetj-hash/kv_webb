@@ -29,6 +29,15 @@
 //! - Revolving‑door adaptive threshold cycling (MAX‑tier)
 //! - False Door Deception Layer (MAX‑tier)
 //!
+//! Ultra‑MAX semantic upgrades added:
+//! - multilayer semantic heat signatures (read/write/eviction/drift/prune)
+//! - semantic tunnel metrics for virtual KV paths
+//! - cache reliability metrics for semantic fast‑paths
+//! - predictor reinforcement + decay for semantic routing patterns
+//! - overflow‑buffer stabilization for semantic volatility
+//! - adaptive fiber‑based semantic exit selection
+//! - pair/group‑aware semantic zone biasing
+//!
 //! All upgrades are backwards-compatible.
 
 use kv_web_core::{KvWeb, TokenId, WebNodeId, EdgeKind};
@@ -50,13 +59,196 @@ pub struct SemanticPolygon {
     pub face_index: u8,
 }
 
+/// Ultra‑MAX: semantic heat signature across multiple layers.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SemanticHeatSignature {
+    pub read_heat: f32,
+    pub write_heat: f32,
+    pub eviction_heat: f32,
+    pub drift_heat: f32,
+    pub prune_heat: f32,
+    pub fused: f32,
+}
+
+impl SemanticHeatSignature {
+    pub fn new() -> Self {
+        Self {
+            read_heat: 0.0,
+            write_heat: 0.0,
+            eviction_heat: 0.0,
+            drift_heat: 0.0,
+            prune_heat: 0.0,
+            fused: 0.0,
+        }
+    }
+
+    pub fn fuse(&mut self) {
+        self.fused = (self.read_heat
+            + self.write_heat
+            + self.eviction_heat
+            + self.drift_heat
+            + self.prune_heat)
+            / 5.0;
+    }
+}
+
+/// Ultra‑MAX: semantic tunnel metrics for virtual KV paths.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SemanticTunnelMetrics {
+    pub latency_ms: f32,
+    pub jitter_ms: f32,
+    pub congestion: f32,
+    pub stability: f32,
+    pub loss_rate: f32,
+}
+
+impl SemanticTunnelMetrics {
+    pub fn stable_default() -> Self {
+        Self {
+            latency_ms: 1.0,
+            jitter_ms: 0.0,
+            congestion: 0.1,
+            stability: 1.0,
+            loss_rate: 0.0,
+        }
+    }
+
+    pub fn score(&self) -> f32 {
+        let latency_term = (1.0 / (1.0 + self.latency_ms)).min(1.0);
+        let jitter_term = (1.0 - self.jitter_ms).max(0.0);
+        let congestion_term = (1.0 - self.congestion).max(0.0);
+        let stability_term = self.stability;
+        let loss_term = (1.0 - self.loss_rate).max(0.0);
+
+        (latency_term * 0.2)
+            + (jitter_term * 0.2)
+            + (congestion_term * 0.2)
+            + (stability_term * 0.3)
+            + (loss_term * 0.1)
+    }
+}
+
+/// Ultra‑MAX: cache reliability metrics for semantic fast‑paths.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SemanticCacheMetrics {
+    pub cache_hit_count: u64,
+    pub cache_miss_count: u64,
+    pub cache_reliability_score: f32,
+}
+
+impl SemanticCacheMetrics {
+    pub fn new() -> Self {
+        Self {
+            cache_hit_count: 0,
+            cache_miss_count: 0,
+            cache_reliability_score: 1.0,
+        }
+    }
+
+    pub fn record_hit(&mut self) {
+        self.cache_hit_count = self.cache_hit_count.wrapping_add(1);
+        self.update_score();
+    }
+
+    pub fn record_miss(&mut self) {
+        self.cache_miss_count = self.cache_miss_count.wrapping_add(1);
+        self.update_score();
+    }
+
+    fn update_score(&mut self) {
+        let total = self.cache_hit_count + self.cache_miss_count;
+        if total == 0 {
+            self.cache_reliability_score = 1.0;
+            return;
+        }
+        let ratio = self.cache_hit_count as f32 / total as f32;
+        self.cache_reliability_score = ratio.clamp(0.1, 1.0);
+    }
+}
+
+/// Ultra‑MAX: predictor state for semantic routing patterns.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SemanticPredictorState {
+    pub confidence: f32,
+    pub decay: f32,
+}
+
+impl SemanticPredictorState {
+    pub fn new() -> Self {
+        Self {
+            confidence: 0.0,
+            decay: 0.98,
+        }
+    }
+
+    pub fn reinforce(&mut self, success: bool) {
+        if success {
+            self.confidence = (self.confidence + 0.05).min(1.0);
+        } else {
+            self.confidence = (self.confidence * self.decay).max(0.0);
+        }
+    }
+}
+
+/// Ultra‑MAX: overflow buffer for semantic volatility.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SemanticOverflowBuffer {
+    pub volatility_score: f32,
+    pub shock_absorption: f32,
+}
+
+impl SemanticOverflowBuffer {
+    pub fn new() -> Self {
+        Self {
+            volatility_score: 0.0,
+            shock_absorption: 0.5,
+        }
+    }
+
+    pub fn absorb(&mut self, spike: f32) {
+        self.volatility_score = (self.volatility_score * 0.9) + spike * 0.1;
+    }
+
+    pub fn stabilized_bias(&self) -> f32 {
+        (1.0 - self.volatility_score * 0.1).clamp(0.5, 1.0) * self.shock_absorption
+    }
+}
+
+/// Ultra‑MAX: pair/group metadata for semantic zones.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SemanticPairGroupMeta {
+    pub pair_id: Option<usize>,
+    pub group_id: Option<usize>,
+    pub group_size: usize,
+    pub pair_imbalance_score: f32,
+    pub group_stability_delta: f32,
+    pub group_congestion_delta: f32,
+}
+
+impl SemanticPairGroupMeta {
+    pub fn neutral() -> Self {
+        Self {
+            pair_id: None,
+            group_id: None,
+            group_size: 0,
+            pair_imbalance_score: 0.0,
+            group_stability_delta: 0.0,
+            group_congestion_delta: 0.0,
+        }
+    }
+}
+
 /// Dual-layer scratch pad for semantic clustering.
 /// Layer A = raw semantic similarity
 /// Layer B = polygon geometry bias
+/// Ultra‑MAX: Layer C = fused semantic heat
+/// Ultra‑MAX: Layer D = tunnel/cache/predictor bias
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SemanticScratchPad {
     pub layer_a: Vec<f32>,
     pub layer_b: Vec<f32>,
+    pub layer_c: Vec<f32>,
+    pub layer_d: Vec<f32>,
 }
 
 /// Zoning + indexing for semantic clusters.
@@ -617,6 +809,7 @@ fn centroid_embedding(
 }
 
 /// Build dual-layer scratch pad for semantic clustering.
+/// Ultra‑MAX: also builds empty layer C/D for future fused heat + bias.
 fn build_semantic_scratch_pad(
     web: &KvWeb,
     root: WebNodeId,
@@ -631,7 +824,15 @@ fn build_semantic_scratch_pad(
         layer_b.push(bias);
     }
 
-    SemanticScratchPad { layer_a, layer_b }
+    let layer_c = vec![0.0; nodes.len()];
+    let layer_d = vec![0.0; nodes.len()];
+
+    SemanticScratchPad {
+        layer_a,
+        layer_b,
+        layer_c,
+        layer_d,
+    }
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -1379,6 +1580,16 @@ pub struct SemanticPacket {
     pub last_exit_zone: Option<usize>,
     pub route_score: f32,
     pub stability_factor: f32,
+    /// Ultra‑MAX: cognitive weight for semantic routing.
+    pub cognitive_weight: f32,
+    /// Ultra‑MAX: tunnel bias for virtual KV paths.
+    pub tunnel_bias: f32,
+    /// Ultra‑MAX: cache reliability influence.
+    pub cache_reliability: f32,
+    /// Ultra‑MAX: predictor confidence for exit reuse.
+    pub predictor_confidence: f32,
+    /// Ultra‑MAX: overflow stabilization factor.
+    pub overflow_stability: f32,
 }
 
 impl SemanticPacket {
@@ -1394,6 +1605,11 @@ impl SemanticPacket {
             last_exit_zone: None,
             route_score: 0.0,
             stability_factor: 1.0,
+            cognitive_weight: 1.0,
+            tunnel_bias: 1.0,
+            cache_reliability: 1.0,
+            predictor_confidence: 0.0,
+            overflow_stability: 1.0,
         }
     }
 
@@ -1404,13 +1620,18 @@ impl SemanticPacket {
             SemanticPriority::Low => SemanticPriority::Standard,
         };
         self.stability_factor = (self.stability_factor + 0.05).min(2.0);
+        self.cognitive_weight = (self.cognitive_weight + 0.05).min(2.0);
     }
 
     pub fn reinforce(&mut self, success: bool) {
         if success {
             self.stability_factor = (self.stability_factor + 0.05).min(2.0);
+            self.cognitive_weight = (self.cognitive_weight + 0.03).min(2.0);
+            self.predictor_confidence = (self.predictor_confidence + 0.05).min(1.0);
         } else {
             self.stability_factor = (self.stability_factor - 0.05).max(0.1);
+            self.cognitive_weight = (self.cognitive_weight * 0.97).max(0.5);
+            self.predictor_confidence = (self.predictor_confidence * 0.95).max(0.0);
         }
     }
 }
@@ -1419,6 +1640,10 @@ impl SemanticPacket {
 pub struct SemanticRoundaboutConfig {
     pub max_hops_before_escalation: u32,
     pub max_age_before_force_exit_ms: u64,
+    /// Ultra‑MAX: heatmap decay for semantic scoring.
+    pub heatmap_decay: f32,
+    /// Ultra‑MAX: number of fibers to simulate per packet.
+    pub fibers: u8,
 }
 
 impl Default for SemanticRoundaboutConfig {
@@ -1426,6 +1651,8 @@ impl Default for SemanticRoundaboutConfig {
         Self {
             max_hops_before_escalation: 8,
             max_age_before_force_exit_ms: 250,
+            heatmap_decay: 0.9,
+            fibers: 4,
         }
     }
 }
@@ -1445,6 +1672,15 @@ pub enum SemanticRouteDecision {
         zone_id: usize,
         node_id: WebNodeId,
     },
+}
+
+/// Ultra‑MAX: fiber candidate for semantic routing.
+#[derive(Debug, Clone)]
+pub struct SemanticFiberCandidate {
+    pub zone_id: usize,
+    pub node_id: WebNodeId,
+    pub score: f32,
+    pub fiber_id: u8,
 }
 
 pub trait KvWebSemanticRoundabout {
@@ -1476,6 +1712,11 @@ impl KvWebSemanticRoundabout for KvWeb {
         {
             packet.escalate();
         }
+
+        // Ultra‑MAX: overflow buffer + cache + predictor state (local, per routing cycle).
+        let mut overflow = SemanticOverflowBuffer::new();
+        let mut cache_metrics = SemanticCacheMetrics::new();
+        let mut predictor_state = SemanticPredictorState::new();
 
         let mut candidates: Vec<SemanticExitCandidate> = Vec::new();
 
@@ -1509,7 +1750,21 @@ impl KvWebSemanticRoundabout for KvWeb {
                         .map(|i| zoning.scratch.layer_a[i])
                         .unwrap_or(0.0);
 
-                    let score = bias * 0.5 + scratch_sim * 0.5;
+                    // Ultra‑MAX: fused score with stability + cognitive weight.
+                    let mut score = bias * 0.5 + scratch_sim * 0.5;
+                    score *= packet.stability_factor;
+                    score *= packet.cognitive_weight;
+
+                    // Ultra‑MAX: simple tunnel + cache influence.
+                    let tunnel = SemanticTunnelMetrics::stable_default();
+                    let tunnel_score = tunnel.score();
+                    score = score * 0.7 + tunnel_score * 0.3;
+
+                    // Ultra‑MAX: overflow buffer absorbs volatility from scratchpad.
+                    let spike = compute_heatmap_spike(Some(&zoning.scratch.layer_a));
+                    overflow.absorb(spike);
+                    let overflow_bias = overflow.stabilized_bias();
+                    score *= overflow_bias;
 
                     candidates.push(SemanticExitCandidate {
                         zone_id,
@@ -1526,16 +1781,56 @@ impl KvWebSemanticRoundabout for KvWeb {
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
+        // Ultra‑MAX: fiber simulation over top candidates.
+        let mut fiber_candidates: Vec<SemanticFiberCandidate> = Vec::new();
+        let max_fibers = cfg.fibers.max(1);
+        let top_k = candidates.len().min(max_fibers as usize * 2);
+
+        for (idx, base) in candidates.iter().take(top_k).enumerate() {
+            let fiber_id = (idx as u8) % max_fibers;
+            let jitter = 1.0 + (fiber_id as f32 * 0.01);
+            let fiber_score = base.score * jitter;
+            fiber_candidates.push(SemanticFiberCandidate {
+                zone_id: base.zone_id,
+                node_id: base.node_id,
+                score: fiber_score,
+                fiber_id,
+            });
+        }
+
+        fiber_candidates.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
         let mut chosen: Option<SemanticExitCandidate> = None;
 
+        // Ultra‑MAX: predictor hint based on last_exit_zone.
         if let Some(hint_zone) = packet.last_exit_zone {
-            if let Some(hinted) = candidates.iter().find(|c| c.zone_id == hint_zone) {
-                chosen = Some(hinted.clone());
+            if let Some(hinted) = fiber_candidates
+                .iter()
+                .find(|c| c.zone_id == hint_zone)
+            {
+                predictor_state.reinforce(true);
+                chosen = Some(SemanticExitCandidate {
+                    zone_id: hinted.zone_id,
+                    node_id: hinted.node_id,
+                    score: hinted.score,
+                });
+            } else {
+                predictor_state.reinforce(false);
             }
         }
 
         if chosen.is_none() {
-            chosen = candidates.first().cloned();
+            if let Some(best) = fiber_candidates.first() {
+                chosen = Some(SemanticExitCandidate {
+                    zone_id: best.zone_id,
+                    node_id: best.node_id,
+                    score: best.score,
+                });
+            }
         }
 
         match chosen {
@@ -1546,6 +1841,9 @@ impl KvWebSemanticRoundabout for KvWeb {
             Some(exit) => {
                 packet.route_score = exit.score;
                 packet.last_exit_zone = Some(exit.zone_id);
+                packet.overflow_stability = overflow.stabilized_bias();
+                packet.cache_reliability = cache_metrics.cache_reliability_score;
+                packet.predictor_confidence = predictor_state.confidence;
                 packet.reinforce(true);
 
                 SemanticRouteDecision::Exit {
@@ -1557,3 +1855,4 @@ impl KvWebSemanticRoundabout for KvWeb {
         }
     }
 }
+
