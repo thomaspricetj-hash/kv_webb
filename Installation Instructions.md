@@ -1,153 +1,220 @@
-1. System Requirements
-KV‑Webb is optimized for modern hardware and GPU routing.
+KV‑Webb Runtime 3.4.1 — Corporate Installation & Deployment Guide
+Tier‑8 Cognitive Substrate Edition
+For Enterprise, Cloud, HPC, and AI Infrastructure Teams
+1. Overview
+KV‑Webb is a Tier‑8 cognitive memory engine that replaces traditional KV‑cache with semantic geometry, drift physics, pruning physics, dynamic webbing, multi‑layer heatmaps, predictor foresight, and GPU‑accelerated routing.
+It installs as a software module, microservice, or sidecar, not as firmware.
 
+This guide provides enterprise‑ready installation steps for:
+
+Cloud platforms
+
+On‑prem data centers
+
+HPC clusters
+
+AI inference servers
+
+Microservice architectures
+
+Hybrid CPU/GPU environments
+
+2. System Requirements
 Minimum
 Rust 1.74+
 
-CUDA‑capable GPU (NVIDIA GTX series or better)
+8–16 GB RAM
+
+CUDA‑capable GPU (optional)
 
 Windows, Linux, or WSL2
 
 Git
 
-Recommended
-NVIDIA RTX 30xx / 40xx
+Recommended (Enterprise/HPC)
+NVIDIA RTX 30xx/40xx or A100/H100
 
 CUDA 12.x
 
-Rust nightly (for fastest builds)
-
 32–64 GB RAM
 
-SSD/NVMe storage
+NVMe SSD
 
-2. Clone the Repository
-bash
-git clone https://github.com/thomaspricetj-hash/kv_webb.git
-cd kv_webb
-3. Install Dependencies
-KV‑Webb uses standard Rust crates plus optional CUDA bindings.
+Kubernetes or Docker runtime
 
-Rust Dependencies
-bash
-cargo build
-Cargo will automatically fetch:
+gRPC/REST gateway
 
-rayon (parallelism)
+3. Deployment Models
+KV‑Webb supports multiple corporate deployment patterns:
 
-serde (packet serialization)
+A. Embedded Library (Rust‑Native Systems)
+Fastest integration path.
 
-ndarray / nalgebra (geometry)
+B. Microservice Deployment (Enterprise Standard)
+KV‑Webb runs as a standalone cognitive memory service.
 
-cuda‑sys / cust (if GPU routing enabled)
+C. Sidecar Deployment (Kubernetes / Cloud)
+KV‑Webb runs next to the application container.
 
-If you want GPU routing enabled:
+D. Shared Library / FFI (Legacy Systems)
+Java, Python, C++, Go call KV‑Webb through bindings.
 
-CUDA Toolkit
-Install CUDA 12.x from NVIDIA’s official site.
+4. Installation Steps
+A. Install as a Rust Library (Recommended for Modern Systems)
+Add KV‑Webb to Cargo.toml:
 
-Verify CUDA is visible:
+toml
+[dependencies]
+kv_webb = "3.4.1"
+Build:
 
-bash
-nvcc --version
-4. Build KV‑Webb Runtime
-CPU‑only build
 bash
 cargo build --release
-GPU‑accelerated build
+Initialize KV‑Webb in your application:
+
+rust
+let mut webb = KvWebbRuntime::new();
+webb.initialize();
+This integrates KV‑Webb directly into your runtime.
+
+B. Install as a Microservice (Enterprise‑Friendly)
+Build the service:
+
 bash
 cargo build --release --features gpu
-This enables:
+Run the KV‑Webb service:
 
-Hybrid PKM GPU routing
-
-Multi‑stream CUDA execution
-
-GPU mask building
-
-GPU‑accelerated heatmaps
-
-GPU‑accelerated pruning
-
-5. Run KV‑Webb Runtime
-Default runtime
 bash
-cargo run --release
-GPU runtime
+./target/release/kv_webb_service
+Connect via REST or gRPC:
+
+/kvwebb/route
+
+/kvwebb/heatmap
+
+/kvwebb/predict
+
+/kvwebb/memory/write
+
+/kvwebb/memory/read
+
+This is the preferred method for distributed systems.
+
+C. Install as a Kubernetes Sidecar
+Build a Docker image:
+
+bash
+docker build -t kv_webb:3.4.1 .
+Add KV‑Webb as a sidecar:
+
+yaml
+containers:
+  - name: kv-webb
+    image: kv_webb:3.4.1
+    ports:
+      - containerPort: 8080
+Application communicates with KV‑Webb via localhost RPC.
+
+This is ideal for cloud‑native deployments.
+
+D. Install as a Shared Library (Legacy Systems)
+Build shared library:
+
+bash
+cargo build --release
+Use generated:
+
+kv_webb.dll (Windows)
+
+libkv_webb.so (Linux)
+
+libkv_webb.dylib (Mac)
+
+Bind through FFI:
+
+Java: JNI
+
+Python: ctypes / cffi
+
+C++: extern “C”
+
+Go: cgo
+
+This allows KV‑Webb to run inside older enterprise stacks.
+
+5. Optional Feature Flags
+GPU Acceleration
 bash
 cargo run --release --features gpu
-6. Optional: Enable Debug Metrics
-bash
-cargo run --release --features debug
-This prints:
-
-heatmap layers
-
-drift physics
-
-pruning decisions
-
-predictor activity
-
-SSL firewall events
-
-roundabout routing traces
-
-7. Optional: Enable BitDrop_v2 Compression
+BitDrop_v2 + BD3D Compression
 bash
 cargo run --release --features compression
-This activates:
-
-reversible cognitive packets
-
-BD3D folding
-
-collapse ordering
-
-GPU‑ready packet streaming
-
-8. Optional: Enable Full Cognitive Stack
-Everything enabled:
-
+SSL + RAH Security Layer
 bash
-cargo run --release --features "gpu compression debug ssl predictor roundabout"
-This runs KV‑Webb in full Tier‑8 cognitive substrate mode.
-
-9. Environment Variables (Optional)
-GPU routing tuning
+cargo run --release --features ssl
+Predictor Foresight Engine
 bash
-set KVWEB_GPU_STREAMS=8
-set KVWEB_GPU_BLOCK_SIZE=256
-Predictor tuning
+cargo run --release --features predictor
+Full Cognitive Substrate Mode
 bash
-set KVWEB_PREDICTOR_DECAY=0.92
-SSL hardening
-bash
-set KVWEB_SSL_MODE=aggressive
-10. Verify Installation
-Run the built‑in diagnostic:
+cargo run --release --features "gpu compression ssl predictor roundabout"
+6. Environment Variables (Enterprise Tuning)
+GPU Routing
+Code
+KVWEB_GPU_STREAMS=8
+KVWEB_GPU_BLOCK_SIZE=256
+Predictor
+Code
+KVWEB_PREDICTOR_DECAY=0.92
+SSL Hardening
+Code
+KVWEB_SSL_MODE=aggressive
+Heatmap Layers
+Code
+KVWEB_HEATMAP_LAYERS=6
+7. Diagnostics & Validation
+Run full diagnostics:
 
 bash
 cargo test
-You should see:
+Includes:
 
 semantic geometry tests
 
-heatmap layer tests
+drift physics tests
 
 pruning physics tests
 
-drift physics tests
-
-SSL firewall tests
+heatmap layer tests
 
 predictor foresight tests
 
+SSL firewall tests
+
 roundabout routing tests
 
-11. No‑Loophole Protection
-Add this to your README or LICENSE:
+8. Corporate Integration Checklist
+Required
+Rust toolchain installed
 
+KV‑Webb added to project or deployed as service
+
+API endpoints reachable
+
+GPU drivers installed (if used)
+
+Recommended
+Monitoring dashboards
+
+Predictor activity logs
+
+SSL threat logs
+
+Heatmap visualization tools
+
+Drift/pruning metrics
+
+9. Corporate Security Notice
 KV‑Webb Runtime 3.4.1 and all associated cognitive routing, geometry, predictor, compression, and security systems are proprietary intellectual property belonging exclusively to Thomas.
 No reuse, replication, modification, redistribution, or derivative works are permitted without explicit written permission.
 All rights reserved. No exceptions.
