@@ -3029,43 +3029,243 @@ All rights to the design, implementation, evolution, and future upgrades of thes
 
 
 
-This project, including all current and future modules, subsystems, upgrades, 
+This project, including all current and future modules, subsystems, upgrades,
 
-optimizations, security layers, routing engines, geometry systems, compression 
+optimizations, security layers, routing engines, geometry systems, compression
 
-mechanisms, predictors, schedulers, firewalls, and any derivative components 
+mechanisms, predictors, schedulers, firewalls, and any derivative components
 
-thereof (collectively, “Extended Runtime Components”), is hereby licensed under 
+thereof (collectively, “Extended Runtime Components”), is hereby licensed under
 
 the same terms as the main KV‑Webb Runtime license.
 
 
 
-All Extended Runtime Components—including but not limited to: semantic 
+All Extended Runtime Components—including but not limited to: semantic
 
-roundabout routing, multi‑layer heatmaps, zoning systems, drift physics, 
+roundabout routing, multi‑layer heatmaps, zoning systems, drift physics,
 
-pruning physics, dynamic webbing, clustering engines, embedding geometry, 
+pruning physics, dynamic webbing, clustering engines, embedding geometry,
 
-BitDrop\_v2 compression, Hybrid PKM GPU routing, global activity predictor, 
+BitDrop\_v2 compression, Hybrid PKM GPU routing, global activity predictor,
 
-scheduler roundabout pipeline, Semantic Security Layer (SSL), Reverse‑Adversarial 
+scheduler roundabout pipeline, Semantic Security Layer (SSL), Reverse‑Adversarial
 
-Hardening (RAH), Revolving‑Door Firewall, False Door Deception Layer, and any 
+Hardening (RAH), Revolving‑Door Firewall, False Door Deception Layer, and any
 
-future enhancements—are considered integral parts of the KV‑Webb Runtime and are 
+future enhancements—are considered integral parts of the KV‑Webb Runtime and are
 
 covered fully and without limitation by this license.
 
 
 
-No additional restrictions, obligations, or separate licensing terms apply to 
+No additional restrictions, obligations, or separate licensing terms apply to
 
-any Extended Runtime Components. All rights, permissions, protections, and 
+any Extended Runtime Components. All rights, permissions, protections, and
 
-limitations granted by this license automatically extend to all such components, 
+limitations granted by this license automatically extend to all such components,
 
 whether added now or in the future.
 
 
+
+📜 DAX Protection Clause (Add to License)
+
+DAX Delta‑State Compute Engine — Proprietary Rights
+
+
+
+The DAX Delta‑State Compute Engine, including but not limited to:
+
+
+
+delta‑state computation methods
+
+
+
+reversible collapse rules (32‑bit tagged collapses)
+
+
+
+multi‑pass collapse loops
+
+
+
+Pattern‑Tag‑Signature (PTS) mapping
+
+
+
+Bloom‑filtered collapse routing
+
+
+
+reversible compression formats
+
+
+
+delta‑packet structures
+
+
+
+GPU‑ready binary packet formats
+
+
+
+delta‑aware pruning, clustering, and routing logic
+
+
+
+delta‑state semantic zoning
+
+
+
+delta‑state semantic routing
+
+
+
+delta‑state predictor integration
+
+
+
+delta‑state firewall integration
+
+
+
+delta‑state scheduler integration
+
+
+
+all DAX‑generated packets, transforms, and state‑transition rules
+
+
+
+all DAX‑MAX hybrid behaviors
+
+
+
+all DAX‑related algorithms, designs, and cognitive orchestration methods
+
+
+
+are proprietary intellectual property belonging exclusively to Thomas.
+
+
+
+No individual, organization, or system is permitted to:
+
+
+
+copy
+
+
+
+modify
+
+
+
+replicate
+
+
+
+redistribute
+
+
+
+reverse‑engineer
+
+
+
+derive from
+
+
+
+emulate
+
+
+
+simulate
+
+
+
+train models on
+
+
+
+extract collapse rules from
+
+
+
+extract packet formats from
+
+
+
+extract delta‑state behavior from
+
+
+
+integrate into commercial or non‑commercial systems
+
+
+
+or use any portion of DAX
+
+
+
+without explicit written permission from Thomas.
+
+
+
+This protection applies to:
+
+
+
+source code
+
+
+
+binaries
+
+
+
+packet formats
+
+
+
+compression rules
+
+
+
+routing behaviors
+
+
+
+collapse logic
+
+
+
+delta‑state transitions
+
+
+
+cognitive orchestration patterns
+
+
+
+documentation
+
+
+
+diagrams
+
+
+
+research notes
+
+
+
+and all derivative works
+
+
+
+All rights reserved. No exceptions. No loopholes. No derivative rights granted.
 

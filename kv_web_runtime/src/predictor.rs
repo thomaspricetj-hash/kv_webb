@@ -9,12 +9,16 @@
 //! - dual-layer predictor scratch pads
 //! - roundabout-style predictor memory
 //! - GPU-ready compressed predictor packets
+//! - DAX-backed predictor lineage (DeltaStore integration)
 //!
 //! All upgrades are backwards-compatible.
 
 use kv_web_core::{KvWeb, WebNodeId, KvWebCompressor};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::dax::DeltaStore;
 
 /// Predictor configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -90,6 +94,58 @@ fn build_predictor_scratch_pad(scores: &[f32]) -> KvWebPredictorScratchPad {
     KvWebPredictorScratchPad { layer_a, layer_b }
 }
 
+/// Simple timestamp in ms (no chrono).
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64
+}
+
+/// Log predictor result into DAX as a delta lineage event.
+fn log_predictor_delta(dax: &mut DeltaStore, result: &KvWebPredictorResult) {
+    if result.top_nodes.is_empty() || result.scores.is_empty() {
+        return;
+    }
+
+    // Domain 1 = predictor domain (arbitrary but stable).
+    let domain = 1u8;
+    let kind = 1u8; // predictor activity kind
+
+    let ts = now_ms();
+
+    // Heat = average score of top nodes.
+    let mut sum = 0.0f32;
+    for s in &result.scores {
+        sum += *s;
+    }
+    let heat = if !result.scores.is_empty() {
+        sum / (result.scores.len() as f32)
+    } else {
+        0.0
+    };
+
+    // Create master buffer for predictor domain.
+    let master_id = dax.add_master_buffer(domain);
+
+    // Create delta record.
+    let rec_id = dax.add_delta(
+        domain,
+        kind,
+        ts,
+        ts,
+        heat,
+        Some("predictor_activity".to_string()),
+    );
+
+    // Create delta buffer and attach record.
+    let delta_id = dax.add_delta_buffer(domain, master_id);
+    dax.attach_record_to_delta(delta_id, rec_id);
+
+    // Create effective view (M ⊕ D) for lineage.
+    let _view_id = dax.create_effective_view(master_id, delta_id);
+}
+
 /// Extension trait for predictor.
 pub trait KvWebPredictor {
     fn predict_activity(
@@ -104,6 +160,25 @@ pub trait KvWebPredictor {
         cfg: &KvWebPredictorConfig,
         memory: &mut KvWebPredictorMemory,
         top_k: usize,
+    ) -> Option<Vec<u8>>;
+}
+
+/// DAX‑aware predictor extension: same logic, but logs into DeltaStore.
+pub trait KvWebPredictorDax {
+    fn predict_activity_with_dax(
+        &self,
+        cfg: &KvWebPredictorConfig,
+        memory: &mut KvWebPredictorMemory,
+        top_k: usize,
+        dax: &mut DeltaStore,
+    ) -> KvWebPredictorResult;
+
+    fn predict_activity_compressed_with_dax(
+        &self,
+        cfg: &KvWebPredictorConfig,
+        memory: &mut KvWebPredictorMemory,
+        top_k: usize,
+        dax: &mut DeltaStore,
     ) -> Option<Vec<u8>>;
 }
 
@@ -226,3 +301,41 @@ impl KvWebPredictor for KvWeb {
         self.compressor.as_ref().map(|c| c.compress(&packet))
     }
 }
+
+impl KvWebPredictorDax for KvWeb {
+    fn predict_activity_with_dax(
+        &self,
+        cfg: &KvWebPredictorConfig,
+        memory: &mut KvWebPredictorMemory,
+        top_k: usize,
+        dax: &mut DeltaStore,
+    ) -> KvWebPredictorResult {
+        let result = self.predict_activity(cfg, memory, top_k);
+        log_predictor_delta(dax, &result);
+        result
+    }
+
+    fn predict_activity_compressed_with_dax(
+        &self,
+        cfg: &KvWebPredictorConfig,
+        memory: &mut KvWebPredictorMemory,
+        top_k: usize,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>> {
+        let result = self.predict_activity_with_dax(cfg, memory, top_k, dax);
+
+        let scratch = build_predictor_scratch_pad(&result.scores);
+
+        let packet = KvWebPredictorPacket {
+            tag: "kv_web_predictor_dax",
+            top_nodes: result.top_nodes.clone(),
+            scores: result.scores.clone(),
+            scratch_a: scratch.layer_a.clone(),
+            scratch_b: scratch.layer_b.clone(),
+            patterns: memory.patterns.clone(),
+        };
+
+        self.compressor.as_ref().map(|c| c.compress(&packet))
+    }
+}
+

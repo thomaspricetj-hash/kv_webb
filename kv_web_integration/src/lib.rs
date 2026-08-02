@@ -16,11 +16,26 @@
 pub mod gpu;
 pub mod transformer;
 pub mod visualize;
-pub mod export;   // ★ NEW: export utilities wired in
+pub mod export;   // ★ export utilities wired in
 
 use kv_web_core::{KvWeb, TokenId, WebNodeId};
 use kv_web_runtime::KvWebRuntime;
 use crate::gpu::{GpuContext, build_attention_mask_gpu};
+
+use std::collections::HashMap;
+
+// DAX / MAX‑tier semantic + roundabout integration types.
+use kv_web_runtime::semantic::{
+    Embedding,
+    SemanticOptimizationConfig,
+    SemanticRoundaboutConfig,
+    SemanticPacket,
+    SemanticPriority,
+    SemanticZoning,
+    SemanticRouteDecision,
+    KvWebSemantic,
+    KvWebSemanticRoundabout,
+};
 
 /// A simple KV‑cache representation for integration.
 /// In a real system, this would be the transformer's KV tensors.
@@ -38,13 +53,13 @@ impl KvCache {
 
 /// Integration utilities for KV‑cache webbing.
 pub struct KvWebIntegration<'a> {
-    pub web: &'a KvWeb,
+    pub web: &'a mut KvWeb,
     pub cache: &'a KvCache,
     pub gpu: Option<&'a GpuContext>,   // optional GPU context
 }
 
 impl<'a> KvWebIntegration<'a> {
-    pub fn new(web: &'a KvWeb, cache: &'a KvCache) -> Self {
+    pub fn new(web: &'a mut KvWeb, cache: &'a KvCache) -> Self {
         Self { web, cache, gpu: None }
     }
 
@@ -126,6 +141,70 @@ impl<'a> KvWebIntegration<'a> {
 
         (keys, values)
     }
+
+    // ========================================================================
+    // DAX / MAX‑tier semantic integration helpers
+    // ========================================================================
+
+    /// Run MAX‑tier semantic zoning and return the zoning structure.
+    /// Uses the KvWebSemantic extension trait (semantic.rs).
+    pub fn dax_semantic_zoning(
+        &mut self,
+        embeddings: &HashMap<TokenId, Embedding>,
+        root: WebNodeId,
+        threshold: f32,
+        num_zones: usize,
+    ) -> SemanticZoning {
+        self.web.semantic_index_and_zone(embeddings, root, threshold, num_zones)
+    }
+
+    /// Run MAX‑tier semantic zoning and return a GPU‑ready compressed packet.
+    pub fn dax_semantic_zoning_compressed(
+        &mut self,
+        embeddings: &HashMap<TokenId, Embedding>,
+        root: WebNodeId,
+        threshold: f32,
+        num_zones: usize,
+    ) -> Option<Vec<u8>> {
+        self.web.semantic_index_and_zone_compressed(embeddings, root, threshold, num_zones)
+    }
+
+    /// Run MAX‑tier semantic optimization over similarity threshold and return
+    /// a compressed optimization packet.
+    pub fn dax_optimize_semantic(
+        &mut self,
+        embeddings: &HashMap<TokenId, Embedding>,
+        similarity_threshold: &mut f32,
+        cfg: &SemanticOptimizationConfig,
+    ) -> Option<Vec<u8>> {
+        self.web.optimize_semantic(embeddings, similarity_threshold, cfg)
+    }
+
+    /// Route a semantic packet through the MAX‑tier roundabout engine.
+    pub fn dax_route_semantic_packet(
+        &mut self,
+        embeddings: &HashMap<TokenId, Embedding>,
+        zoning: &SemanticZoning,
+        cfg: &SemanticRoundaboutConfig,
+        packet: SemanticPacket,
+    ) -> SemanticRouteDecision {
+        self.web.route_semantic_packet(embeddings, zoning, cfg, packet)
+    }
+
+    /// Convenience: build zoning + packet and perform a full MAX‑tier route.
+    pub fn dax_route_from_root(
+        &mut self,
+        embeddings: &HashMap<TokenId, Embedding>,
+        root: WebNodeId,
+        threshold: f32,
+        num_zones: usize,
+        cfg: &SemanticRoundaboutConfig,
+        packet_id: u64,
+    ) -> SemanticRouteDecision {
+        let zoning = self.dax_semantic_zoning(embeddings, root, threshold, num_zones);
+        let packet = SemanticPacket::new(packet_id, root, SemanticPriority::Standard);
+        self.dax_route_semantic_packet(embeddings, &zoning, cfg, packet)
+    }
 }
 
 // ============================================================================
@@ -188,3 +267,5 @@ pub fn optimize_integration<'a>(
 
     // No compression here — integration optimization is runtime-only.
 }
+
+

@@ -56,12 +56,12 @@ fn main() {
     web.add_edge(node_b, node_c, 0.8, EdgeKind::Semantic);
 
     // ---------------------------------------------------------
-    // 4. Use the integration layer
+    // 4. Use the integration layer (mutable web required)
     // ---------------------------------------------------------
-    let integration = KvWebIntegration::new(&web, &cache);
+    let mut integration = KvWebIntegration::new(&mut web, &cache);
 
     // Region: start at node A, depth 2
-    let region_tokens = web.tokens_in_region(node_a, 2);
+    let region_tokens = integration.web.tokens_in_region(node_a, 2);
     println!("Tokens in region (depth 2): {:?}", region_tokens);
 
     // Hard attention mask
@@ -80,6 +80,6 @@ fn main() {
     // ---------------------------------------------------------
     // 5. Region score
     // ---------------------------------------------------------
-    let score = web.region_score(node_a, 2);
+    let score = integration.web.region_score(node_a, 2);
     println!("Region score: {}", score);
 }

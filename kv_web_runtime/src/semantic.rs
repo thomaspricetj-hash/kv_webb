@@ -1856,3 +1856,20 @@ impl KvWebSemanticRoundabout for KvWeb {
     }
 }
 
+/// Helper: full semantic roundabout pipeline over a mutable KvWeb.
+///
+/// Fixes borrow error by requiring `&mut KvWeb` so `semantic_index_and_zone`
+/// and `route_semantic_packet` can both mutate the web safely.
+pub fn semantic_roundabout_pipeline(
+    web: &mut KvWeb,
+    embeddings: &HashMap<TokenId, Embedding>,
+    root: WebNodeId,
+    threshold: f32,
+    num_zones: usize,
+    cfg: &SemanticRoundaboutConfig,
+    packet: SemanticPacket,
+) -> SemanticRouteDecision {
+    let zoning = web.semantic_index_and_zone(embeddings, root, threshold, num_zones);
+    web.route_semantic_packet(embeddings, &zoning, cfg, packet)
+}
+

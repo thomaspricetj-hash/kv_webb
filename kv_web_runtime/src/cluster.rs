@@ -14,6 +14,7 @@
 //! - Revolving-door routing over clusters (entry/exit + flow)
 //! - Fusion field over clusters (score + geometry + door flow)
 //! - Embedded Roundabout logic (heatmaps + predictor + smoothing + memory + solver)
+//! - DAX-backed cluster lineage (DeltaStore integration)
 //!
 //! All upgrades are backwards-compatible.
 
@@ -21,6 +22,9 @@ use kv_web_core::{KvWeb, WebNodeId, KvWebCompressor, PolygonRegion};
 use rayon::prelude::*;
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::dax::DeltaStore;
 
 /// A cluster with polygonal KV metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -148,6 +152,44 @@ pub struct RoundaboutClusterSolverResult {
 pub struct KvWebClusters {
     pub clusters: Vec<Cluster>,
     pub compressor: Option<KvWebCompressor>,
+}
+
+/// Simple timestamp in ms (no chrono).
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64
+}
+
+/// Log a cluster-level delta into DAX.
+fn log_cluster_delta(
+    dax: &mut DeltaStore,
+    tag: &str,
+    avg_score: f32,
+    avg_geom: f32,
+) {
+    // Domain 3 = cluster domain.
+    let domain = 3u8;
+    let kind = 1u8; // generic cluster event
+
+    let ts = now_ms();
+    let heat = avg_score;
+
+    let master_id = dax.add_master_buffer(domain);
+    let rec_id = dax.add_delta(
+        domain,
+        kind,
+        ts,
+        ts,
+        heat,
+        Some(tag.to_string()),
+    );
+    let delta_id = dax.add_delta_buffer(domain, master_id);
+    dax.attach_record_to_delta(delta_id, rec_id);
+    let _view_id = dax.create_effective_view(master_id, delta_id);
+
+    // Optionally, we could attach avg_geom as a secondary record in future.
 }
 
 impl KvWebClusters {
@@ -688,6 +730,113 @@ impl KvWebClusters {
                 result.bias,
             ))
         })
+    }
+}
+
+/// DAX-aware cluster extension.
+pub trait KvWebClustersDax {
+    fn optimize_with_dax(
+        &mut self,
+        web: &KvWeb,
+        opt_cfg: &ClusterOptimizationConfig,
+        dax: &mut DeltaStore,
+    );
+
+    fn roundabout_cluster_pipeline_compressed_with_dax(
+        &self,
+        web: &KvWeb,
+        num_zones: usize,
+        predictor_cfg: &RoundaboutClusterPredictorConfig,
+        memory: &mut RoundaboutClusterPatternMemory,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>>;
+
+    fn build_zoning_compressed_with_dax(
+        &self,
+        num_zones: usize,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>>;
+}
+
+impl KvWebClustersDax for KvWebClusters {
+    fn optimize_with_dax(
+        &mut self,
+        web: &KvWeb,
+        opt_cfg: &ClusterOptimizationConfig,
+        dax: &mut DeltaStore,
+    ) {
+        self.optimize(web, opt_cfg);
+
+        let scratch = self.build_scratch_pad();
+        let mut total_score = 0.0f32;
+        let mut total_geom = 0.0f32;
+
+        for (s, g) in scratch.layer_a.iter().zip(scratch.layer_b.iter()) {
+            total_score += *s;
+            total_geom += *g;
+        }
+
+        let n = scratch.layer_a.len() as f32;
+        let avg_score = if n > 0.0 { total_score / n } else { 0.0 };
+        let avg_geom = if n > 0.0 { total_geom / n } else { 0.0 };
+
+        log_cluster_delta(dax, "optimize_clusters", avg_score, avg_geom);
+    }
+
+    fn roundabout_cluster_pipeline_compressed_with_dax(
+        &self,
+        web: &KvWeb,
+        num_zones: usize,
+        predictor_cfg: &RoundaboutClusterPredictorConfig,
+        memory: &mut RoundaboutClusterPatternMemory,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>> {
+        let packet = self.roundabout_cluster_pipeline_compressed(
+            web,
+            num_zones,
+            predictor_cfg,
+            memory,
+        );
+
+        let scratch = self.build_scratch_pad();
+        let mut total_score = 0.0f32;
+        let mut total_geom = 0.0f32;
+
+        for (s, g) in scratch.layer_a.iter().zip(scratch.layer_b.iter()) {
+            total_score += *s;
+            total_geom += *g;
+        }
+
+        let n = scratch.layer_a.len() as f32;
+        let avg_score = if n > 0.0 { total_score / n } else { 0.0 };
+        let avg_geom = if n > 0.0 { total_geom / n } else { 0.0 };
+
+        log_cluster_delta(dax, "roundabout_cluster_pipeline", avg_score, avg_geom);
+        packet
+    }
+
+    fn build_zoning_compressed_with_dax(
+        &self,
+        num_zones: usize,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>> {
+        let packet = self.build_zoning_compressed(num_zones);
+
+        let scratch = self.build_scratch_pad();
+        let mut total_score = 0.0f32;
+        let mut total_geom = 0.0f32;
+
+        for (s, g) in scratch.layer_a.iter().zip(scratch.layer_b.iter()) {
+            total_score += *s;
+            total_geom += *g;
+        }
+
+        let n = scratch.layer_a.len() as f32;
+        let avg_score = if n > 0.0 { total_score / n } else { 0.0 };
+        let avg_geom = if n > 0.0 { total_geom / n } else { 0.0 };
+
+        log_cluster_delta(dax, "cluster_zoning", avg_score, avg_geom);
+        packet
     }
 }
 

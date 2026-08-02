@@ -1,7 +1,7 @@
 //! graph_ops.rs
 //!
 //! General graph operations over KvWeb + BitDrop_v2 max‑tier compression
-//! + Polygonal-KV geometry upgrade.
+//! + Polygonal-KV geometry upgrade + DAX (DMM) overlays.
 //!
 //! Adds:
 //! - polygon-aware BFS expansion
@@ -18,6 +18,7 @@
 //! - Fusion field (load + semantic + geometry + door flow)
 //! - Routing solver (bias-aware, GPU-ready packets)
 //! - Embedded Roundabout logic (heatmaps, predictor, smoothing, memory, bias, solver)
+//! - DAX delta-merged views for graph regions, routing, and roundabout decisions
 //!
 //! All upgrades are backwards-compatible.
 
@@ -25,6 +26,7 @@ use kv_web_core::{KvWeb, WebNodeId};
 use crate::KvWebRuntime; // needed for web.neighbors(...)
 use rayon::prelude::*;
 use serde::{Serialize, Deserialize};
+use crate::dax::DeltaStore;
 
 /// Graph ops optimization configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1151,6 +1153,242 @@ pub fn roundabout_pipeline_compressed(
     web.compressor.as_ref().map(|c| {
         c.compress(&(
             "roundabout_pipeline",
+            pr_iterations,
+            pr_damping,
+            predictor_cfg.passes,
+            &heatmaps.layer_a,
+            &heatmaps.layer_b,
+            &chains,
+            &memory.patterns,
+            &results,
+        ))
+    })
+}
+
+//
+// ──────────────────────────────────────────────────────────────
+//   DAX / DMM INTEGRATION FOR GRAPH OPS (MASTER + DELTA + VIEWS)
+// ──────────────────────────────────────────────────────────────
+//
+
+fn dax_log_graph_event(
+    store: &mut DeltaStore,
+    domain: u8,
+    kind: u8,
+    tag: &str,
+    heat_signature: f32,
+) {
+    // Ensure master for this domain
+    let master_id = if store.masters.iter().any(|m| m.domain == domain) {
+        store.masters.iter().find(|m| m.domain == domain).map(|m| m.id).unwrap_or(0)
+    } else {
+        store.add_master_buffer(domain)
+    };
+
+    // Branch view
+    let (master_id, delta_id, _view_id) = store.branch_view_from(master_id);
+
+    // Record delta
+    let ts = std::time::SystemTime::now()
+                   .duration_since(std::time::UNIX_EPOCH)
+                   .unwrap()
+                   .as_millis() as u64;
+
+    let rec_idx = store.add_delta(
+        domain,
+        kind,
+        ts,
+        ts,
+        heat_signature,
+        Some(tag.to_string()),
+    );
+
+    // Attach + update view
+    store.attach_record_to_delta(delta_id, rec_idx);
+    let _view_id = store.create_effective_view(master_id, delta_id);
+}
+
+/// DAX-enabled compressed BFS region with indexing + zoning + scratch pad.
+pub fn bfs_region_index_and_zone_compressed_dax(
+    web: &KvWeb,
+    root: WebNodeId,
+    depth: usize,
+    num_zones: usize,
+    delta_store: &mut DeltaStore,
+) -> Option<Vec<u8>> {
+    let rz = bfs_region_index_and_zone(web, root, depth, num_zones);
+
+    // Heat signature: region size
+    let heat = rz.nodes.len() as f32;
+    dax_log_graph_event(delta_store, 1, 10, "graph:bfs_region_index_and_zone", heat);
+
+    web.compressor.as_ref().map(|c| {
+        c.compress(&(
+            "bfs_region_index_and_zone_dax",
+            root,
+            depth,
+            num_zones,
+            &rz.nodes,
+            &rz.index_map,
+            &rz.zones,
+            &rz.scratch.layer_a,
+            &rz.scratch.layer_b,
+        ))
+    })
+}
+
+/// DAX-enabled PageRank + scratch.
+pub fn pagerank_with_scratch_compressed_dax(
+    web: &KvWeb,
+    iterations: usize,
+    damping: f32,
+    delta_store: &mut DeltaStore,
+) -> Option<Vec<u8>> {
+    let pr = pagerank(web, iterations, damping);
+    let scratch = build_dual_layer_scratch_pad_for_pagerank(web, &pr, damping);
+
+    // Heat signature: span of ranks
+    let mut min_r = f32::MAX;
+    let mut max_r = f32::MIN;
+    for (_, r) in &pr {
+        if *r < min_r { min_r = *r; }
+        if *r > max_r { max_r = *r; }
+    }
+    let span = if max_r > min_r { max_r - min_r } else { 0.0 };
+    dax_log_graph_event(delta_store, 1, 20, "graph:pagerank_with_scratch", span);
+
+    web.compressor.as_ref().map(|c| {
+        c.compress(&(
+            "pagerank_with_scratch_dax",
+            iterations,
+            damping,
+            &pr,
+            &scratch.layer_a,
+            &scratch.layer_b,
+        ))
+    })
+}
+
+/// DAX-enabled optimize_graph_ops.
+pub fn optimize_graph_ops_dax(
+    web: &KvWeb,
+    root: WebNodeId,
+    depth: &mut usize,
+    damping: &mut f32,
+    cfg: &GraphOpsOptimizationConfig,
+    delta_store: &mut DeltaStore,
+) -> Option<Vec<u8>> {
+    // Same logic as optimize_graph_ops
+    let bfs_nodes = bfs_region(web, root, *depth);
+    let bfs_size = bfs_nodes.len();
+
+    let pr = pagerank(web, 16, *damping);
+    let mut min_r = f32::MAX;
+    let mut max_r = f32::MIN;
+
+    for (_, r) in &pr {
+        if *r < min_r {
+            min_r = *r;
+        }
+        if *r > max_r {
+            max_r = *r;
+        }
+    }
+
+    let pr_span = if max_r > min_r { max_r - min_r } else { 0.0 };
+
+    if bfs_size < cfg.target_bfs_size && *depth < cfg.max_depth {
+        *depth += 1;
+    } else if bfs_size > cfg.max_bfs_size && *depth > cfg.min_depth {
+        *depth -= 1;
+    }
+
+    if pr_span < 0.01 {
+        *damping = (*damping * 1.05).min(cfg.max_damping);
+    } else if pr_span > 0.2 {
+        *damping = (*damping * 0.95).max(cfg.min_damping);
+    }
+
+    let scratch = build_dual_layer_scratch_pad_for_bfs(web, root, &bfs_nodes, *depth);
+
+    // Heat signature: combined BFS size + PR span
+    let heat = bfs_size as f32 + pr_span;
+    dax_log_graph_event(delta_store, 1, 30, "graph:optimize_graph_ops", heat);
+
+    web.compressor.as_ref().map(|c| {
+        c.compress(&(
+            "optimize_graph_ops_dax",
+            root,
+            bfs_size,
+            pr_span,
+            *depth,
+            *damping,
+            &scratch.layer_a,
+            &scratch.layer_b,
+        ))
+    })
+}
+
+/// DAX-enabled routing with fusion.
+pub fn solve_routing_with_fusion_compressed_dax(
+    web: &KvWeb,
+    regions: &[RegionZoning],
+    pr_iterations: usize,
+    pr_damping: f32,
+    delta_store: &mut DeltaStore,
+) -> Option<Vec<u8>> {
+    let pr = pagerank(web, pr_iterations, pr_damping);
+    let doors_grid = build_cross_link_grid_from_regions(regions);
+    let doors = build_revolving_doors(web, &doors_grid);
+    let fusion = build_fusion_field(web, &pr, &doors);
+    let decisions = solve_routing_with_fusion(web, regions, &fusion, &pr);
+
+    // Heat signature: number of decisions
+    let heat = decisions.len() as f32;
+    dax_log_graph_event(delta_store, 1, 40, "graph:solve_routing_with_fusion", heat);
+
+    web.compressor.as_ref().map(|c| {
+        c.compress(&(
+            "solve_routing_with_fusion_dax",
+            pr_iterations,
+            pr_damping,
+            &decisions,
+        ))
+    })
+}
+
+/// DAX-enabled roundabout pipeline.
+pub fn roundabout_pipeline_compressed_dax(
+    web: &KvWeb,
+    regions: &[RegionZoning],
+    pr_iterations: usize,
+    pr_damping: f32,
+    predictor_cfg: &RoundaboutPredictorConfig,
+    memory: &mut RoundaboutPatternMemory,
+    delta_store: &mut DeltaStore,
+) -> Option<Vec<u8>> {
+    let pr = pagerank(web, pr_iterations, pr_damping);
+    let grid = build_cross_link_grid_from_regions(regions);
+    let doors = build_revolving_doors(web, &grid);
+    let mut fusion = build_fusion_field(web, &pr, &doors);
+
+    let heatmaps = build_roundabout_heatmaps(regions, &fusion, &pr);
+    let mut chains = run_roundabout_predictor(web, regions, &fusion, &pr, predictor_cfg);
+    smooth_roundabout_chains(&mut chains, &fusion, &pr, predictor_cfg.smoothing_strength);
+    update_roundabout_pattern_memory(memory, &chains);
+    apply_roundabout_bias(&mut fusion, &pr, memory);
+    let results = run_roundabout_solver(regions, &fusion, &pr, &chains, memory);
+
+    // Heat signature: total bias sum over results
+    let mut heat = 0.0f32;
+    for r in &results {
+        heat += r.bias.max(0.0);
+    }
+    dax_log_graph_event(delta_store, 1, 50, "graph:roundabout_pipeline", heat);
+
+    web.compressor.as_ref().map(|c| {
+        c.compress(&(
+            "roundabout_pipeline_dax",
             pr_iterations,
             pr_damping,
             predictor_cfg.passes,

@@ -16,15 +16,30 @@ use crate::KvCache;
 use kv_web_core::{KvWeb, WebNodeId};
 use kv_web_runtime::KvWebRuntime;
 
+use std::collections::HashMap;
+
+// DAX / MAX‑tier semantic + roundabout integration types.
+use kv_web_runtime::semantic::{
+    Embedding,
+    SemanticOptimizationConfig,
+    SemanticRoundaboutConfig,
+    SemanticPacket,
+    SemanticPriority,
+    SemanticZoning,
+    SemanticRouteDecision,
+    KvWebSemantic,
+    KvWebSemanticRoundabout,
+};
+
 /// A simple wrapper for transformer KV‑cache operations.
 pub struct TransformerKV<'a> {
-    pub web: &'a KvWeb,
+    pub web: &'a mut KvWeb,
     pub cache: &'a KvCache,
     pub gpu: Option<&'a GpuContext>,
 }
 
 impl<'a> TransformerKV<'a> {
-    pub fn new(web: &'a KvWeb, cache: &'a KvCache) -> Self {
+    pub fn new(web: &'a mut KvWeb, cache: &'a KvCache) -> Self {
         Self { web, cache, gpu: None }
     }
 
@@ -73,7 +88,7 @@ impl<'a> TransformerKV<'a> {
         for neighbor in self.web.neighbors(root) {
             for t in &neighbor.tokens {
                 if t.0 < mask.len() && mask[t.0] == 0.0 {
-                    mask[t.0] = 0.5;
+                mask[t.0] = 0.5;
                 }
             }
         }
@@ -117,6 +132,68 @@ impl<'a> TransformerKV<'a> {
     ) {
         let mask = self.hard_mask(root, depth);
         self.apply_mask(attn, &mask);
+    }
+
+    // ========================================================================
+    // DAX / MAX‑tier semantic integration hooks
+    // ========================================================================
+
+    /// Run MAX‑tier semantic zoning and return the zoning structure.
+    pub fn dax_semantic_zoning(
+        &mut self,
+        embeddings: &HashMap<kv_web_core::TokenId, Embedding>,
+        root: WebNodeId,
+        threshold: f32,
+        num_zones: usize,
+    ) -> SemanticZoning {
+        self.web.semantic_index_and_zone(embeddings, root, threshold, num_zones)
+    }
+
+    /// Run MAX‑tier semantic zoning and return a compressed packet.
+    pub fn dax_semantic_zoning_compressed(
+        &mut self,
+        embeddings: &HashMap<kv_web_core::TokenId, Embedding>,
+        root: WebNodeId,
+        threshold: f32,
+        num_zones: usize,
+    ) -> Option<Vec<u8>> {
+        self.web.semantic_index_and_zone_compressed(embeddings, root, threshold, num_zones)
+    }
+
+    /// Run MAX‑tier semantic optimization over similarity threshold.
+    pub fn dax_optimize_semantic(
+        &mut self,
+        embeddings: &HashMap<kv_web_core::TokenId, Embedding>,
+        similarity_threshold: &mut f32,
+        cfg: &SemanticOptimizationConfig,
+    ) -> Option<Vec<u8>> {
+        self.web.optimize_semantic(embeddings, similarity_threshold, cfg)
+    }
+
+    /// Route a semantic packet through the MAX‑tier roundabout engine.
+    pub fn dax_route_semantic_packet(
+        &mut self,
+        embeddings: &HashMap<kv_web_core::TokenId, Embedding>,
+        zoning: &SemanticZoning,
+        cfg: &SemanticRoundaboutConfig,
+        packet: SemanticPacket,
+    ) -> SemanticRouteDecision {
+        self.web.route_semantic_packet(embeddings, zoning, cfg, packet)
+    }
+
+    /// Convenience: build zoning + packet and perform a full MAX‑tier route.
+    pub fn dax_route_from_root(
+        &mut self,
+        embeddings: &HashMap<kv_web_core::TokenId, Embedding>,
+        root: WebNodeId,
+        threshold: f32,
+        num_zones: usize,
+        cfg: &SemanticRoundaboutConfig,
+        packet_id: u64,
+    ) -> SemanticRouteDecision {
+        let zoning = self.dax_semantic_zoning(embeddings, root, threshold, num_zones);
+        let packet = SemanticPacket::new(packet_id, root, SemanticPriority::Standard);
+        self.dax_route_semantic_packet(embeddings, &zoning, cfg, packet)
     }
 }
 

@@ -16,6 +16,7 @@
 //! - revolving-door routing over edge zones (entry/exit + flow)
 //! - fusion field over dynamic web (weights + geometry + door flow)
 //! - embedded Roundabout logic (predictor + smoothing + memory + solver)
+//! - DAX-backed dynamic web lineage (DeltaStore integration)
 //!
 //! All upgrades are backwards-compatible.
 
@@ -23,6 +24,9 @@ use kv_web_core::{KvWeb, WebNodeId, EdgeKind, KvWebCompressor};
 use rayon::prelude::*;
 use serde::{Serialize, Deserialize};
 use std::collections::HashSet;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::dax::DeltaStore;
 
 /// Dynamic webbing configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -117,6 +121,14 @@ pub struct RoundaboutDynamicWebPatternMemory {
 pub struct RoundaboutDynamicWebSolverResult {
     pub chosen_edge_index: usize,
     pub bias: f32,
+}
+
+/// Simple timestamp in ms (no chrono).
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64
 }
 
 /// Build dual-layer scratch pad from current edges.
@@ -259,7 +271,7 @@ fn build_dynamic_web_fusion_field(
         };
 
         let norm = grid.edge_norm_weights[idx];
-        bias *= (0.5 + norm * 0.5);
+        bias *= 0.5 + norm * 0.5;
 
         for door in doors {
             if door.exit_edges.contains(&(*from, *to)) {
@@ -447,6 +459,34 @@ fn run_roundabout_dynamic_web_solver(
     }
 }
 
+/// Log a dynamic web delta into DAX.
+fn log_dynamic_web_delta(
+    dax: &mut DeltaStore,
+    tag: &str,
+    avg_weight: f32,
+    span: f32,
+) {
+    // Domain 2 = dynamic web domain.
+    let domain = 2u8;
+    let kind = 1u8; // generic dynamic web event
+
+    let ts = now_ms();
+    let heat = avg_weight;
+
+    let master_id = dax.add_master_buffer(domain);
+    let rec_id = dax.add_delta(
+        domain,
+        kind,
+        ts,
+        ts,
+        heat,
+        Some(tag.to_string()),
+    );
+    let delta_id = dax.add_delta_buffer(domain, master_id);
+    dax.attach_record_to_delta(delta_id, rec_id);
+    let _view_id = dax.create_effective_view(master_id, delta_id);
+}
+
 /// Extension trait for dynamic webbing.
 pub trait KvWebDynamic {
     fn reinforce_edges(&mut self, nodes: &[WebNodeId], cfg: &DynamicWebConfig)
@@ -471,6 +511,50 @@ pub trait KvWebDynamic {
         cfg: &DynamicWebConfig,
         predictor_cfg: &RoundaboutDynamicWebPredictorConfig,
         memory: &mut RoundaboutDynamicWebPatternMemory,
+    ) -> Option<Vec<u8>>;
+}
+
+/// DAX-aware dynamic web extension.
+pub trait KvWebDynamicDax {
+    fn reinforce_edges_with_dax(
+        &mut self,
+        nodes: &[WebNodeId],
+        cfg: &DynamicWebConfig,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>>;
+
+    fn decay_edges_with_dax(
+        &mut self,
+        cfg: &DynamicWebConfig,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>>;
+
+    fn link_recent_nodes_with_dax(
+        &mut self,
+        recent: &[WebNodeId],
+        cfg: &DynamicWebConfig,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>>;
+
+    fn normalize_edges_with_dax(
+        &mut self,
+        cfg: &DynamicWebConfig,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>>;
+
+    fn optimize_dynamic_web_with_dax(
+        &mut self,
+        cfg: &mut DynamicWebConfig,
+        opt_cfg: &DynamicWebOptimizationConfig,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>>;
+
+    fn roundabout_dynamic_web_pipeline_compressed_with_dax(
+        &mut self,
+        cfg: &DynamicWebConfig,
+        predictor_cfg: &RoundaboutDynamicWebPredictorConfig,
+        memory: &mut RoundaboutDynamicWebPatternMemory,
+        dax: &mut DeltaStore,
     ) -> Option<Vec<u8>>;
 }
 
@@ -683,3 +767,202 @@ impl KvWebDynamic for KvWeb {
         })
     }
 }
+
+impl KvWebDynamicDax for KvWeb {
+    fn reinforce_edges_with_dax(
+        &mut self,
+        nodes: &[WebNodeId],
+        cfg: &DynamicWebConfig,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>> {
+        let packet = self.reinforce_edges(nodes, cfg);
+        let scratch = build_dynamic_web_scratch_pad(self);
+
+        let mut total = 0.0f32;
+        let mut min_w = f32::MAX;
+        let mut max_w = f32::MIN;
+        for w in &scratch.layer_a {
+            total += *w;
+            if *w < min_w {
+                min_w = *w;
+            }
+            if *w > max_w {
+                max_w = *w;
+            }
+        }
+        let avg = if !scratch.layer_a.is_empty() {
+            total / (scratch.layer_a.len() as f32)
+        } else {
+            0.0
+        };
+        let span = if max_w > min_w { max_w - min_w } else { 0.0 };
+
+        log_dynamic_web_delta(dax, "reinforce_edges", avg, span);
+        packet
+    }
+
+    fn decay_edges_with_dax(
+        &mut self,
+        cfg: &DynamicWebConfig,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>> {
+        let packet = self.decay_edges(cfg);
+        let scratch = build_dynamic_web_scratch_pad(self);
+
+        let mut total = 0.0f32;
+        let mut min_w = f32::MAX;
+        let mut max_w = f32::MIN;
+        for w in &scratch.layer_a {
+            total += *w;
+            if *w < min_w {
+                min_w = *w;
+            }
+            if *w > max_w {
+                max_w = *w;
+            }
+        }
+        let avg = if !scratch.layer_a.is_empty() {
+            total / (scratch.layer_a.len() as f32)
+        } else {
+            0.0
+        };
+        let span = if max_w > min_w { max_w - min_w } else { 0.0 };
+
+        log_dynamic_web_delta(dax, "decay_edges", avg, span);
+        packet
+    }
+
+    fn link_recent_nodes_with_dax(
+        &mut self,
+        recent: &[WebNodeId],
+        cfg: &DynamicWebConfig,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>> {
+        let packet = self.link_recent_nodes(recent, cfg);
+        let scratch = build_dynamic_web_scratch_pad(self);
+
+        let mut total = 0.0f32;
+        let mut min_w = f32::MAX;
+        let mut max_w = f32::MIN;
+        for w in &scratch.layer_a {
+            total += *w;
+            if *w < min_w {
+                min_w = *w;
+            }
+            if *w > max_w {
+                max_w = *w;
+            }
+        }
+        let avg = if !scratch.layer_a.is_empty() {
+            total / (scratch.layer_a.len() as f32)
+        } else {
+            0.0
+        };
+        let span = if max_w > min_w { max_w - min_w } else { 0.0 };
+
+        log_dynamic_web_delta(dax, "link_recent_nodes", avg, span);
+        packet
+    }
+
+    fn normalize_edges_with_dax(
+        &mut self,
+        cfg: &DynamicWebConfig,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>> {
+        let packet = self.normalize_edges(cfg);
+        let scratch = build_dynamic_web_scratch_pad(self);
+
+        let mut total = 0.0f32;
+        let mut min_w = f32::MAX;
+        let mut max_w = f32::MIN;
+        for w in &scratch.layer_a {
+            total += *w;
+            if *w < min_w {
+                min_w = *w;
+            }
+            if *w > max_w {
+                max_w = *w;
+            }
+        }
+        let avg = if !scratch.layer_a.is_empty() {
+            total / (scratch.layer_a.len() as f32)
+        } else {
+            0.0
+        };
+        let span = if max_w > min_w { max_w - min_w } else { 0.0 };
+
+        log_dynamic_web_delta(dax, "normalize_edges", avg, span);
+        packet
+    }
+
+    fn optimize_dynamic_web_with_dax(
+        &mut self,
+        cfg: &mut DynamicWebConfig,
+        opt_cfg: &DynamicWebOptimizationConfig,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>> {
+        let packet = self.optimize_dynamic_web(cfg, opt_cfg);
+        let scratch = build_dynamic_web_scratch_pad(self);
+
+        let mut total = 0.0f32;
+        let mut min_w = f32::MAX;
+        let mut max_w = f32::MIN;
+        for w in &scratch.layer_a {
+            total += *w;
+            if *w < min_w {
+                min_w = *w;
+            }
+            if *w > max_w {
+                max_w = *w;
+            }
+        }
+        let avg = if !scratch.layer_a.is_empty() {
+            total / (scratch.layer_a.len() as f32)
+        } else {
+            0.0
+        };
+        let span = if max_w > min_w { max_w - min_w } else { 0.0 };
+
+        log_dynamic_web_delta(dax, "optimize_dynamic_web", avg, span);
+        packet
+    }
+
+    fn roundabout_dynamic_web_pipeline_compressed_with_dax(
+        &mut self,
+        cfg: &DynamicWebConfig,
+        predictor_cfg: &RoundaboutDynamicWebPredictorConfig,
+        memory: &mut RoundaboutDynamicWebPatternMemory,
+        dax: &mut DeltaStore,
+    ) -> Option<Vec<u8>> {
+        let packet = self.roundabout_dynamic_web_pipeline_compressed(
+            cfg,
+            predictor_cfg,
+            memory,
+        );
+
+        let scratch = build_dynamic_web_scratch_pad(self);
+
+        let mut total = 0.0f32;
+        let mut min_w = f32::MAX;
+        let mut max_w = f32::MIN;
+        for w in &scratch.layer_a {
+            total += *w;
+            if *w < min_w {
+                min_w = *w;
+            }
+            if *w > max_w {
+                max_w = *w;
+            }
+        }
+        let avg = if !scratch.layer_a.is_empty() {
+            total / (scratch.layer_a.len() as f32)
+        } else {
+            0.0
+        };
+        let span = if max_w > min_w { max_w - min_w } else { 0.0 };
+
+        log_dynamic_web_delta(dax, "roundabout_dynamic_web_pipeline", avg, span);
+        packet
+    }
+}
+

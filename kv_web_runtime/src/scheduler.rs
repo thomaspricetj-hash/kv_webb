@@ -1,13 +1,14 @@
 //! scheduler.rs
 //!
-//! Global optimization scheduler for KV‑Webb + BitDrop_v2 + Polygonal‑KV geometry.
+//! Global optimization scheduler for KV‑Webb + BitDrop_v2 + Polygonal‑KV geometry + DAX (DMM).
 //!
 //! This ties together:
 //! - core KvWeb optimization
 //! - integration optimization
 //! - transformer KV optimization
 //! - GPU mask‑building optimization
-//! - predictor subsystem (NEW)
+//! - predictor subsystem
+//! - DAX delta‑merged memory (master + delta + views)
 //!
 //! Max‑tier upgrades:
 //! - cross‑link grid over subsystem states
@@ -20,7 +21,7 @@
 //! - subsystem‑level tunnel metrics + reliability scoring
 //! - subsystem‑level cognitive weight + reinforcement
 //!
-//! All original logic preserved.
+//! All original logic preserved; DAX is additive.
 
 use kv_web_core::{
     KvWeb,
@@ -57,7 +58,195 @@ use kv_web_runtime::predictor::{
 };
 
 use serde::{Serialize, Deserialize};
+use chrono::Utc;
 use std::time::Instant;
+
+// ────────────────────────────────────────────────────────────────
+//   DAX / DMM CORE: MASTER + DELTA + EFFECTIVE VIEW
+// ────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeltaRecord {
+    pub domain: u8,
+    pub kind: u8,
+    pub seq: u64,
+    pub packet_id: u64,
+    pub heat_signature: f32,
+    pub tag: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MasterBuffer {
+    pub id: usize,
+    pub domain: u8,
+    pub fingerprint: u64,
+    pub created_at_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeltaBuffer {
+    pub id: usize,
+    pub domain: u8,
+    pub master_id: usize,
+    pub records: Vec<DeltaRecord>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EffectiveView {
+    pub id: usize,
+    pub domain: u8,
+    pub master_id: usize,
+    pub delta_id: usize,
+    pub fingerprint: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeltaStore {
+    pub records: Vec<DeltaRecord>,
+    pub masters: Vec<MasterBuffer>,
+    pub deltas: Vec<DeltaBuffer>,
+    pub views: Vec<EffectiveView>,
+}
+
+impl DeltaStore {
+    pub fn new() -> Self {
+        Self {
+            records: Vec::new(),
+            masters: Vec::new(),
+            deltas: Vec::new(),
+            views: Vec::new(),
+        }
+    }
+
+    /// Append a DAX delta record.
+    pub fn add_delta(
+        &mut self,
+        domain: u8,
+        kind: u8,
+        seq: u64,
+        packet_id: u64,
+        heat_signature: f32,
+        tag: Option<String>,
+    ) -> usize {
+        let rec = DeltaRecord {
+            domain,
+            kind,
+            seq,
+            packet_id,
+            heat_signature,
+            tag,
+        };
+        self.records.push(rec);
+        self.records.len() - 1
+    }
+
+    /// Create a new master buffer for a domain.
+    pub fn add_master_buffer(&mut self, domain: u8) -> usize {
+        let id = self.masters.len();
+        let fingerprint = self.compute_fingerprint_for_domain(domain);
+        let created_at_ms = Utc::now().timestamp_millis() as u64;
+        self.masters.push(MasterBuffer {
+            id,
+            domain,
+            fingerprint,
+            created_at_ms,
+        });
+        id
+    }
+
+    /// Create a delta buffer attached to a master.
+    pub fn add_delta_buffer(&mut self, domain: u8, master_id: usize) -> usize {
+        let id = self.deltas.len();
+        self.deltas.push(DeltaBuffer {
+            id,
+            domain,
+            master_id,
+            records: Vec::new(),
+        });
+        id
+    }
+
+    /// Attach an existing record to a delta buffer.
+    pub fn attach_record_to_delta(&mut self, delta_id: usize, record_idx: usize) {
+        if let Some(delta) = self.deltas.get_mut(delta_id) {
+            if let Some(rec) = self.records.get(record_idx).cloned() {
+                delta.records.push(rec);
+            }
+        }
+    }
+
+    /// Compute a simple fingerprint over all records in a domain.
+    fn compute_fingerprint_for_domain(&self, domain: u8) -> u64 {
+        let mut acc: u64 = 0;
+        for r in &self.records {
+            if r.domain == domain {
+                let h = (r.seq ^ r.packet_id) as u64;
+                let bits = (r.heat_signature.to_bits() as u64).wrapping_mul(0x9E3779B185EBCA87);
+                acc = acc.wrapping_add(h ^ bits);
+            }
+        }
+        acc
+    }
+
+    /// Compute a fingerprint for a master buffer.
+    pub fn fingerprint_for_master(&self, master_id: usize) -> u64 {
+        if let Some(master) = self.masters.get(master_id) {
+            self.compute_fingerprint_for_domain(master.domain)
+        } else {
+            0
+        }
+    }
+
+    /// Create an effective view (M ⊕ D) for a given master + delta.
+    pub fn create_effective_view(&mut self, master_id: usize, delta_id: usize) -> usize {
+        let domain = if let Some(master) = self.masters.get(master_id) {
+            master.domain
+        } else {
+            0
+        };
+
+        let fingerprint = {
+            let base = self.fingerprint_for_master(master_id);
+            let mut delta_acc: u64 = 0;
+            if let Some(delta) = self.deltas.get(delta_id) {
+                for r in &delta.records {
+                    let h = (r.seq ^ r.packet_id) as u64;
+                    let bits = (r.heat_signature.to_bits() as u64).wrapping_mul(0x9E3779B185EBCA87);
+                    delta_acc = delta_acc.wrapping_add(h ^ bits);
+                }
+            }
+            base ^ delta_acc
+        };
+
+        let id = self.views.len();
+        self.views.push(EffectiveView {
+            id,
+            domain,
+            master_id,
+            delta_id,
+            fingerprint,
+        });
+        id
+    }
+
+    /// Branch a new view from an existing master (new delta buffer).
+    pub fn branch_view_from(&mut self, master_id: usize) -> (usize, usize, usize) {
+        let domain = if let Some(master) = self.masters.get(master_id) {
+            master.domain
+        } else {
+            0
+        };
+        let delta_id = self.add_delta_buffer(domain, master_id);
+        let view_id = self.create_effective_view(master_id, delta_id);
+        (master_id, delta_id, view_id)
+    }
+
+    /// Roll back a master to a clean state by dropping its deltas/views.
+    pub fn rollback_master_to(&mut self, master_id: usize) {
+        self.deltas.retain(|d| d.master_id != master_id);
+        self.views.retain(|v| v.master_id != master_id);
+    }
+}
 
 // ────────────────────────────────────────────────────────────────
 //   MAX‑TIER SUBSYSTEM METRICS (TUNNEL, CACHE, OVERFLOW, COGNITIVE)
@@ -460,7 +649,6 @@ impl KvWebScheduler {
             }
         }
 
-        // MAX‑tier: apply tunnel + cache + overflow + cognitive bias
         let tunnel_score = self.state.tunnel.score();
         let cache_score = self.state.cache.reliability;
         let overflow_bias = self.state.overflow.stabilized_bias();
@@ -595,5 +783,186 @@ impl KvWebScheduler {
         fusion: &mut SchedulerFusionField,
         memory: &SchedulerRoundaboutPatternMemory,
     ) {
-        let subsystems = ["kv_web",
+        let subsystems = ["kv_web", "integration", "transformer", "gpu", "predictor"];
+
+        for pattern in &memory.patterns {
+            let boost = pattern.weight * 0.05;
+            for name in &pattern.chain.subsystems {
+                if let Some(idx) = subsystems.iter().position(|x| x == name) {
+                    if idx < fusion.fused_scores.len() {
+                        fusion.fused_scores[idx] *= 1.0 + boost;
+                    }
+                }
+            }
+        }
+
+        let max = fusion.fused_scores.iter().cloned().fold(0.0f32, f32::max);
+        if max > 0.0 {
+            for v in &mut fusion.fused_scores {
+                *v /= max;
+            }
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────
+    //   MAX‑TIER ROUNDABOUT SOLVER
+    // ────────────────────────────────────────────────────────────
+
+    fn run_roundabout_solver(
+        &self,
+        fusion: &SchedulerFusionField,
+        memory: &SchedulerRoundaboutPatternMemory,
+        chain: &SchedulerRoundaboutChain,
+    ) -> SchedulerRoundaboutSolverResult {
+        let subsystems = ["kv_web", "integration", "transformer", "gpu", "predictor"];
+
+        if let Some(last) = chain.subsystems.last() {
+            if let Some(idx) = subsystems.iter().position(|x| x == last) {
+                let bias = fusion.fused_scores.get(idx).copied().unwrap_or(0.0);
+                return SchedulerRoundaboutSolverResult {
+                    chosen_subsystem: last,
+                    bias,
+                };
+            }
+        }
+
+        let mut best_idx = 0usize;
+        let mut best_bias = f32::MIN;
+        for (i, b) in fusion.fused_scores.iter().enumerate() {
+            if *b > best_bias {
+                best_bias = *b;
+                best_idx = i;
+            }
+        }
+
+        let mut final_bias = best_bias;
+        for pattern in &memory.patterns {
+            if pattern.chain.subsystems.iter().any(|s| *s == subsystems[best_idx]) {
+                final_bias *= 1.05;
+            }
+        }
+
+        SchedulerRoundaboutSolverResult {
+            chosen_subsystem: subsystems[best_idx],
+            bias: final_bias,
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────
+    //   MAX‑TIER ROUNDABOUT PACKET
+    // ────────────────────────────────────────────────────────────
+
+    fn build_roundabout_packet(
+        &self,
+        fusion: &SchedulerFusionField,
+        memory: &SchedulerRoundaboutPatternMemory,
+        result: &SchedulerRoundaboutSolverResult,
+        chain: &SchedulerRoundaboutChain,
+    ) -> SchedulerRoundaboutPacket {
+        SchedulerRoundaboutPacket {
+            tag: "scheduler:roundabout",
+            fused_scores: fusion.fused_scores.clone(),
+            chain: chain.subsystems.clone(),
+            chain_total_bias: chain.total_bias,
+            patterns: memory.patterns.clone(),
+            chosen_subsystem: result.chosen_subsystem,
+            chosen_bias: result.bias,
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────
+    //   FULL DAX‑ENABLED SCHEDULER TICK (GPU‑READY PACKET)
+    // ────────────────────────────────────────────────────────────
+
+    pub fn tick_with_dax<'a>(
+        &mut self,
+        web: &mut KvWeb,
+        integration: &KvWebIntegration<'a>,
+        transformer: &TransformerKV<'a>,
+        kv_len: usize,
+        round_cfg: &SchedulerRoundaboutPredictorConfig,
+        round_memory: &mut SchedulerRoundaboutPatternMemory,
+        delta_store: &mut Option<&mut DeltaStore>,
+    ) -> Option<Vec<u8>> {
+        let start = Instant::now();
+
+        // Base subsystem ticks
+        self.tick_kv_web(web);
+        self.tick_integration(integration);
+        self.tick_transformer(transformer);
+        self.tick_gpu(web, kv_len);
+        self.tick_predictor(web);
+
+        // Cross-link + doors + fusion
+        let grid = self.build_cross_link_grid();
+        let doors = self.build_revolving_doors(&grid);
+        let mut fusion = self.build_fusion_field(&grid, &doors);
+
+        // Roundabout predictor + smoothing
+        let mut chain = self.run_roundabout_predictor(&fusion, round_cfg);
+        self.smooth_roundabout_chain(&mut chain, &fusion, round_cfg.smoothing_strength);
+
+        // Memory update + bias
+        self.update_roundabout_memory(round_memory, &chain);
+        self.apply_roundabout_bias(&mut fusion, round_memory);
+
+        // Solver
+        let result = self.run_roundabout_solver(&fusion, round_memory, &chain);
+
+        // Cognitive reinforcement
+        self.state.cognitive.reinforce(result.bias > 0.5);
+
+        // Build packet
+        let packet = self.build_roundabout_packet(&fusion, round_memory, &result, &chain);
+
+        // DAX: master + delta + view
+        if let Some(store_ref) = delta_store.as_mut() {
+            let store: &mut DeltaStore = *store_ref;
+
+            // Create / reuse master for scheduler domain 0
+            let master_id = if store.masters.iter().any(|m| m.domain == 0) {
+                store.masters.iter().find(|m| m.domain == 0).map(|m| m.id).unwrap_or(0)
+            } else {
+                store.add_master_buffer(0)
+            };
+
+            // Branch a new view from master
+            let (master_id, delta_id, _view_id) = store.branch_view_from(master_id);
+
+            // Record scheduler delta
+            let packet_id = Utc::now().timestamp_millis() as u64;
+            let seq = packet_id;
+            let heat_signature = result.bias.max(0.0);
+            let rec_idx = store.add_delta(
+                0,
+                50,
+                seq,
+                packet_id,
+                heat_signature,
+                Some(format!("scheduler:roundabout:{}", result.chosen_subsystem)),
+            );
+
+            // Attach to delta buffer and update effective view fingerprint
+            store.attach_record_to_delta(delta_id, rec_idx);
+            let _view_id = store.create_effective_view(master_id, delta_id);
+        }
+
+        // GPU‑ready compressed packet
+        let elapsed_ms = start.elapsed().as_millis() as u64;
+
+        web.compressor.as_ref().map(|c| {
+            c.compress(&(
+                "scheduler_roundabout_pipeline",
+                self.cfg.default_root,
+                elapsed_ms,
+                &packet.fused_scores,
+                &packet.chain,
+                packet.chain_total_bias,
+                &packet.patterns,
+                packet.chosen_subsystem,
+                packet.chosen_bias,
+            ))
+        })
+    }
+}
 

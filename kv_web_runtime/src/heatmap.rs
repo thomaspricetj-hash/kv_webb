@@ -777,6 +777,23 @@ pub fn run_roundabout_token_solver(
     }
 }
 
+/// Packet type for compressed roundabout token pipeline (DAX-style).
+#[derive(Debug, Clone, Serialize)]
+pub struct HeatmapRoundaboutPipelinePacket {
+    pub tag: &'static str,
+    pub kv_len: usize,
+    pub num_layers: usize,
+    pub base_smoothing_strength: f32,
+    pub passes: usize,
+    pub layer_a: Vec<f32>,
+    pub layer_b: Vec<f32>,
+    pub chain_indices: Vec<usize>,
+    pub chain_total_heat: f32,
+    pub patterns: Vec<RoundaboutTokenPattern>,
+    pub chosen_index: usize,
+    pub chosen_heat: f32,
+}
+
 /// Compressed roundabout token pipeline: heatmaps + predictor + smoothing + memory + solver.
 pub fn roundabout_token_pipeline_compressed(
     web: &KvWeb,
@@ -810,20 +827,20 @@ pub fn roundabout_token_pipeline_compressed(
     // Solver
     let result = run_roundabout_token_solver(&fusion, &chain, memory);
 
-    web.compressor.as_ref().map(|c| {
-        c.compress(&(
-            "roundabout_token_pipeline",
-            kv_len,
-            num_layers,
-            base_smoothing_strength,
-            predictor_cfg.passes,
-            &heatmaps.layer_a,
-            &heatmaps.layer_b,
-            &chain.indices,
-            chain.total_heat,
-            &memory.patterns,
-            result.chosen_index,
-            result.heat,
-        ))
-    })
+    let packet = HeatmapRoundaboutPipelinePacket {
+        tag: "roundabout_token_pipeline",
+        kv_len,
+        num_layers,
+        base_smoothing_strength,
+        passes: predictor_cfg.passes,
+        layer_a: heatmaps.layer_a.clone(),
+        layer_b: heatmaps.layer_b.clone(),
+        chain_indices: chain.indices.clone(),
+        chain_total_heat: chain.total_heat,
+        patterns: memory.patterns.clone(),
+        chosen_index: result.chosen_index,
+        chosen_heat: result.heat,
+    };
+
+    web.compressor.as_ref().map(|c| c.compress(&packet))
 }

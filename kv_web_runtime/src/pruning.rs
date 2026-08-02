@@ -504,7 +504,7 @@ fn build_pruning_fusion_field(
         let mut bias = grid.scores[idx];
 
         let geom = grid.geom_bias[idx];
-        bias *= (0.5 + geom * 0.5);
+        bias *= 0.5 + geom * 0.5;
 
         for door in doors {
             if door.kept_nodes.contains(id) {

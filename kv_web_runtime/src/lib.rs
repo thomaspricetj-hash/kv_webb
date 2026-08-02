@@ -13,6 +13,7 @@ pub mod cluster;
 pub mod embedding;
 pub mod graph_ops;
 pub mod heatmap;
+pub mod dax;
 
 use kv_web_core::{KvWeb, WebNodeId, TokenId, WebNode, KvWebCompressor};
 use std::collections::{HashSet, VecDeque};
